@@ -208,6 +208,17 @@ class ReactAgent:
                                      user_id=user_id,
                                      permitted_visibilities=permitted_visibilities)
         messages = [{"role": "system", "content": self._request_context_text(mode)}]
+        # Deterministic prefetch prevents the model from answering with the
+        # empty-data fallback before it has inspected the current scene.
+        if mode == "scene":
+            try:
+                context = search_scene_content.invoke({"query": query, "content_types": ["post", "comment"]})
+                if context:
+                    messages.append({"role": "system", "content":
+                                     "服务端已检索到以下当前现场资料。只能据此回答，不要向用户展示原始 JSON：\n"
+                                     + json.dumps(context, ensure_ascii=False)})
+            except Exception:
+                pass
         for item in (history or [])[-6:]:
             role = item.get("role") if isinstance(item, dict) else None
             content = item.get("content") if isinstance(item, dict) else None
