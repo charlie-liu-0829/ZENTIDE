@@ -2,7 +2,6 @@
 .env
 .env.*
 !.env.example
-
 # Java/Maven
 **/target/
 *.class
@@ -17,6 +16,7 @@ npm-debug.log*
 
 # Runtime data and logs
 data/logs/
+data/knowledge-snapshots
 data/file/
 *.log
 **/log.path_IS_UNDEFINED/
