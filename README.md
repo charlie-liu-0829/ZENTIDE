@@ -1,198 +1,110 @@
 # 知潮 ZENTIDE
 
-知潮（ZENTIDE）是一个面向兴趣社群的内容交流与智能协作平台。用户可以创建或加入兴趣现场，发布富文本帖子，关联话题，参与评论、点赞、收藏、关注和私信；平台通过独立 Agent 提供现场问答、智能发帖检查、个性化兴趣情报和社区治理能力。
+知潮（ZENTIDE）是面向兴趣社群的内容社区与智能协作平台。用户可以创建兴趣现场、发布和讨论内容，并使用 AI 问答、发帖检查、兴趣推荐与社区治理建议。
 
-## 功能概览
+## 核心功能
 
-- 兴趣现场：创建、审核、邀请、成员申请和成员管理
-- 内容社区：富文本帖子、图片/视频、话题、评论、点赞、收藏和关注
-- 内容检索：社区搜索、话题聚合、知识快照和证据引用
-- AI 能力：现场/帖子问答、智能发帖检查、兴趣情报和治理建议
-- 运营后台：兴趣现场、帖子、评论、成员、话题、帖子类型和治理规则管理
+- 兴趣现场：创建、加入、邀请与成员管理
+- 内容社区：富文本帖子、话题、图片/视频、评论、点赞、收藏与关注
+- 智能能力：现场问答、内容检索、发帖检查、兴趣情报和治理建议
+- 管理后台：现场、内容、成员、话题与治理规则管理
 
-## 系统架构
-
-```text
-Vue 用户端 :6001 ──▶ Spring Boot Web :6050 ──▶ Python Agent：8090-8093
-Vue 管理端 :6002 ──▶ Spring Boot Admin :6061 ──▶ MySQL + Redis
-```
-
-Agent 只接受 Spring Boot 服务端调用，浏览器不会直接连接 Agent。用户身份、兴趣现场范围和内容可见性由后端校验后透传。
-
-## 目录结构
+## 项目组成
 
 ```text
-backend/
-├── zentide-common/              公共模型、Mapper、服务和数据库迁移
-├── zentide-web/                 用户端 API，默认端口 6050
-├── zentide-admin/               管理端 API，默认端口 6061
-└── agent/                       MCP 适配器和 Python Agent
-    └── src/main/python/
-        ├── chat/                社区助手，默认端口 8090
-        ├── SmartPosting/        智能发帖检查，默认端口 8091
-        ├── Recommend/           个性化兴趣情报，默认端口 8092
-        ├── Governance/          社区治理，默认端口 8093
-        └── shared/              Agent 公共能力
-
-frontend/
-├── web/                         用户端，默认端口 6001
-└── admin/                       管理端，默认端口 6002
-
-data/knowledge-snapshots/       已发布帖子的 Markdown 知识快照
-scripts/                         启动、演示数据和数据库校验脚本
-docs/                            数据库运维文档
-zentide.sql                     全新数据库结构快照
+frontend/web          用户端（Vue）       http://localhost:6001
+frontend/admin         管理端（Vue）       http://localhost:6002
+backend/zentide-web   用户 API            http://localhost:6050/api
+backend/zentide-admin 管理 API            http://localhost:6061/api
+backend/agent         Python Agent（8090–8093）
 ```
 
-## 技术栈
+## 快速开始
 
-| 层级 | 技术 |
-| --- | --- |
-| 后端 | Java 21、Spring Boot 3.5、MyBatis、MySQL 8、Redis、Flyway、Maven |
-| 前端 | Vue 3、Vite、Pinia、Element Plus、Tiptap |
-| Agent | Python 3.11、FastAPI、LangChain、LangGraph、Chroma、DashScope |
-| 工程化 | Docker Compose、GitHub Actions、Vitest、Playwright |
+### 环境要求
 
-## 环境要求
+JDK 21、Node.js 22、Python 3.11、MySQL 8、Redis 7。Docker 可用于启动 MySQL 和 Redis。
 
-- JDK 21
-- Maven 3.9.11（推荐使用 `backend/mvnw`）
-- Node.js 22.14.0、npm 10.9.2
-- MySQL 8.0+
-- Redis 7+
-- Python 3.11
+### 配置
 
-版本由 `.java-version`、`.tool-versions`、`frontend/.nvmrc` 和项目配置文件锁定。
-
-## 环境变量
-
-仓库只提供 `.env.example`，本地复制为 `.env` 后加载：
+在项目根目录复制配置模板并填写真实值：
 
 ```bash
 cp .env.example .env
-set -a && source .env && set +a
 ```
 
-至少配置数据库、Redis、Agent Token 和 DashScope API Key：
+至少配置 MySQL 密码、管理员密码、`DASHSCOPE_API_KEY`，并为 `ZENTIDE_AGENT_INTERNAL_TOKEN` 设置随机长字符串。`.env` 不会提交到 GitHub。
 
-```env
-ZENTIDE_DB_USERNAME=root
-ZENTIDE_DB_PASSWORD=your-mysql-password
-ZENTIDE_DB_ROOT_PASSWORD=your-mysql-root-password
-ZENTIDE_REDIS_HOST=127.0.0.1
-ZENTIDE_REDIS_PORT=6379
-ZENTIDE_AGENT_INTERNAL_TOKEN=replace-with-a-random-long-string
-DASHSCOPE_API_KEY=your-dashscope-api-key
-ZENTIDE_ADMIN_ACCOUNT=admin
-ZENTIDE_ADMIN_PASSWORD=change-me-now
-```
-
-`.env`、真实密码、API Key 和本地运行数据不会提交到 GitHub。
-
-## 启动项目
-
-所有命令均从项目根目录执行。
-
-### 1. 启动 MySQL 和 Redis
-
-可以使用本机服务，也可以使用 Docker：
+### 启动基础服务
 
 ```bash
 docker compose up -d mysql redis
+mysql -u root -p < zentide.sql   # 仅首次初始化空数据库
 ```
 
-初始化全新数据库：
+### 启动全部 Agent
+
+以下命令必须在项目根目录（包含 `Makefile` 的 `ZENTIDE` 目录）执行：
 
 ```bash
-mysql -u root -p < zentide.sql
-```
-
-`zentide.sql` 只用于全新或空数据库。已有数据库升级时，使用 `backend/zentide-common/src/main/resources/db/migration/` 中的 Flyway 迁移。
-
-### 2. 安装并启动全部 Agent
-
-Agent 与用户端、管理端独立运行。一次启动四个 Agent：
-
-```bash
+set -a && source .env && set +a
 python3 -m venv .venv-agents
-.venv-agents/bin/python -m pip install --upgrade pip
 .venv-agents/bin/python -m pip install -r backend/agent/src/main/python/requirements-agents.txt
-
 export ZENTIDE_AGENT_PYTHON="$(pwd)/.venv-agents/bin/python"
 make agent-run
 ```
 
-`make agent-run` 会启动 chat（8090）、SmartPosting（8091）、Recommend（8092）和 Governance（8093）。按 `Ctrl-C` 会统一停止全部 Agent。需要单独调试时，可使用 `make post-review-run`、`make recommend-run` 或 `make governance-run`。
-
-### 3. 启动 Java 后端
+该命令会启动 chat（8090）、SmartPosting（8091）、Recommend（8092）和 Governance（8093）。按 `Ctrl-C` 可全部停止。不在根目录时可执行：
 
 ```bash
-cd backend
-./mvnw -f zentide-web/pom.xml spring-boot:run
+make -C /Users/charlieliu/Desktop/java/ZENTIDE agent-run
 ```
 
-另开终端启动管理端：
+### 启动后端
+
+另开终端，加载 `.env` 后分别启动用户端和管理端：
 
 ```bash
-cd backend
-./mvnw -f zentide-admin/pom.xml spring-boot:run
+cd /Users/charlieliu/Desktop/java/ZENTIDE
+set -a && source .env && set +a
+cd backend && ./mvnw -f zentide-web/pom.xml spring-boot:run
 ```
 
-Web/Admin 不会自动启动或停止 Agent，只调用已经运行的 Agent 服务。
+```bash
+cd /Users/charlieliu/Desktop/java/ZENTIDE
+set -a && source .env && set +a
+cd backend && ./mvnw -f zentide-admin/pom.xml spring-boot:run
+```
 
-### 4. 启动前端
+### 启动前端
 
 ```bash
-cd frontend
+cd /Users/charlieliu/Desktop/java/ZENTIDE/frontend
 nvm use
 npm run install:all
 npm run dev
 ```
 
-也可以单独启动某一端：`npm run dev:web` 或 `npm run dev:admin`。
+访问：[用户端](http://localhost:6001) · [管理端](http://localhost:6002)
 
-## 常用命令
+## 技术栈
 
-```bash
-make install       # 安装前端依赖
-make agent-install # 安装全部 Agent 依赖
-make agent-run     # 启动全部 Agent
-make test          # 后端和前端单元测试
-make lint          # 前端 ESLint
-make build         # 后端和前端构建
-make verify        # lint、格式检查、测试和构建
-make schema-check  # 校验数据库快照与 Flyway 结构
-make e2e           # Playwright E2E 测试
-make ci            # schema-check + verify + e2e
+Java 21、Spring Boot、MyBatis、MySQL、Redis、Vue 3、Vite、Python、FastAPI、LangGraph。
+
+## 目录
+
+```text
+backend/       Java API、公共模块和 Agent
+frontend/      用户端与管理端
+data/          运行时生成的知识快照
+scripts/       启动及辅助脚本
+zentide.sql    数据库结构快照
 ```
 
-## 默认地址
+## 安全提示
 
-| 模块 | 地址 |
-| --- | --- |
-| 用户端 | http://localhost:6001 |
-| 管理端 | http://localhost:6002 |
-| 用户端 API | http://localhost:6050/api |
-| 管理端 API | http://localhost:6061/api |
-| chat Agent | http://127.0.0.1:8090 |
-| SmartPosting Agent | http://127.0.0.1:8091 |
-| Recommend Agent | http://127.0.0.1:8092 |
-| Governance Agent | http://127.0.0.1:8093 |
+请勿提交 `.env`、数据库密码、API Key、Agent Token 或本地运行数据。仓库中的 `.env.example` 仅为配置模板。
 
-## 测试与 CI
+## 许可证
 
-提交前建议执行：
-
-```bash
-make ci
-```
-
-该命令会执行数据库结构校验、Java 测试与构建、前端 lint/格式检查/单元测试、前端生产构建和 Playwright E2E 测试。GitHub Actions 使用同一套命令进行持续集成。
-
-## 数据与安全边界
-
-- `zentide.sql`：最终数据库结构快照，可提交到仓库。
-- `data/knowledge-snapshots/`：Agent 检索所需的已发布内容快照。
-- `.env`、数据库密码、模型 API Key、Agent Token：禁止提交。
-- `data/file/`、`data/logs/`、本地 SQLite/Chroma 数据库、虚拟环境、`node_modules`、`target` 和测试报告：本地运行产物，禁止提交。
-- Agent 只返回后端权限范围内的内容；最终治理动作由管理员确认。
+当前项目尚未声明开源许可证。如需使用或二次分发，请先联系作者确认授权。
