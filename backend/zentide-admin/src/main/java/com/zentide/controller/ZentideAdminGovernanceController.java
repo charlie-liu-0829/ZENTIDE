@@ -76,7 +76,7 @@ public class ZentideAdminGovernanceController extends ABaseController {
     @PostMapping("/rules/{ruleId}/delete")
     public ResponseVO<?> deleteRule(@PathVariable Long ruleId) { getAdminAccount(); return getSuccessResponseVO(controlPlane.deleteRule(ruleId)); }
     @PostMapping("/internal/rules")
-    public ResponseVO<?> internalRules(@RequestHeader(value="X-Zentide-Agent-Token",required=false) String token,@RequestBody Map<String,Object> payload){checkInternal(token);return getSuccessResponseVO(Map.of("rules",controlPlane.rules(0L)));}
+    public ResponseVO<?> internalRules(@RequestHeader(value="X-Zentide-Agent-Token",required=false) String token,@RequestBody Map<String,Object> payload){checkInternal(token); Object scene=payload.get("scene_id"); long sceneId=scene instanceof Number n?n.longValue():0L; return getSuccessResponseVO(Map.of("rules",controlPlane.rules(sceneId)));}
     @PostMapping("/internal/result")
     public ResponseVO<?> internalResult(@RequestHeader(value="X-Zentide-Agent-Token",required=false) String token,@RequestBody Map<String,Object> payload){checkInternal(token);controlPlane.saveResult(payload);return getSuccessResponseVO(Map.of("saved",true));}
     private void checkInternal(String token){String expected=System.getenv("ZENTIDE_AGENT_INTERNAL_TOKEN");if(expected!=null&&!expected.isBlank()&&!expected.equals(token))throw new BusinessException("Agent 服务认证失败");}

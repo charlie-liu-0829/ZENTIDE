@@ -8,6 +8,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import re
+import json
+from pathlib import Path
 from typing import Any, TypedDict
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
@@ -44,14 +46,18 @@ SECRET_PATTERNS = {
     "credential_or_secret": re.compile(r"(?i)(sk-[a-z0-9]{20,}|api[_ -]?key\s*[:=]\s*\S+|password\s*[:=]\s*\S+|-----begin [^-]+ key-----)"),
     "phone_number": re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)"),
     "email": re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b"),
-    # 基础社区文明规则：命中后进入人工审核，最终是否隐藏由管理员确认。
-    "abusive_language": re.compile(r"(?i)(她妈的|他妈的|傻子|脑残|操你|妈的|去死)"),
 }
 
 
 class GovernanceAgent:
     def __init__(self, store=None):
         self.store = store
+        self._llm = None
+        try:
+            from langchain_community.chat_models.tongyi import ChatTongyi
+            self._llm = ChatTongyi(model="qwen-plus") if __import__("os").getenv("DASHSCOPE_API_KEY") else None
+        except Exception:
+            self._llm = None
 
     def review(self, *, content_id: int, scene_id: int, title: str, content: str,
                rules: list[dict[str, Any]] | None = None, cases: list[dict[str, Any]] | None = None,
@@ -59,7 +65,7 @@ class GovernanceAgent:
         state: GovernanceState = {"title": title.strip(), "content": content.strip(),
                                   "rules": rules or [], "cases": cases or [],
                                   "snapshot_evidence": snapshot_evidence or []}
-        for node in (self._hard_rules, self._community_rules, self._decide):
+        for node in (self._hard_rules, self._community_rules, self._llm_review, self._decide):
             state.update(node(state))
         # 相同帖子、相同规则和相同内容重复扫描时复用结果 ID，
         # 让控制面执行幂等 upsert，不会因为每次扫描生成随机 ID 而产生重复结果。
@@ -73,6 +79,31 @@ class GovernanceAgent:
         if self.store:
             self.store.save_result(result.result_id, content_id, scene_id, payload)
         return payload
+
+    def _llm_review(self, state: GovernanceState) -> dict[str, Any]:
+        """Use LLM for semantic interpretation; deterministic rules remain authoritative."""
+        if not self._llm:
+            return {"matches": state.get("matches", [])}
+        rules = [{k: r.get(k) for k in ("rule_id", "violation_type", "rule_description", "severity")} for r in state.get("rules", [])]
+        template_path = Path(__file__).resolve().parent / "prompts" / "governance_prompt.txt"
+        template = template_path.read_text(encoding="utf-8")
+        prompt = (template.replace("{{RULES}}", json.dumps(rules, ensure_ascii=False))
+                  .replace("{{TITLE}}", state["title"])
+                  .replace("{{CONTENT}}", state["content"]))
+        try:
+            response = self._llm.invoke(prompt)
+            raw = response.content if hasattr(response, "content") else str(response)
+            parsed = json.loads(re.search(r"\{.*\}", raw, re.S).group(0))
+            additions = []
+            for item in parsed.get("matches", []):
+                if not isinstance(item, dict): continue
+                additions.append({"type": str(item.get("violation_type") or "community_rule"),
+                                  "fragment": str(item.get("reason") or "模型判断命中治理规则"),
+                                  "severity": str(item.get("severity") or "medium"),
+                                  **({"rule_id": item["rule_id"]} if isinstance(item.get("rule_id"), int) else {})})
+            return {"matches": state.get("matches", []) + additions}
+        except Exception:
+            return {"matches": state.get("matches", [])}
 
     def _hard_rules(self, state: GovernanceState) -> dict[str, Any]:
         text = f"{state['title']}\n{state['content']}"

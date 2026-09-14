@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.zentide.mapper.ZentideGovernanceMapper">
-  <select id="listRules" resultType="map">SELECT rule_id,scene_id,violation_type,rule_description,keywords_json,severity,enabled FROM zentide_governance_rule WHERE enabled=1 ORDER BY rule_id</select>
+  <select id="listRules" resultType="map">SELECT rule_id,scene_id,violation_type,rule_description,keywords_json,severity,enabled FROM zentide_governance_rule WHERE enabled=1 AND (scene_id=0 OR scene_id=#{sceneId}) ORDER BY rule_id</select>
   <select id="listAllRules" resultType="map">SELECT rule_id,scene_id,violation_type,rule_description,keywords_json,severity,enabled,updated_at FROM zentide_governance_rule ORDER BY enabled DESC,updated_at DESC,rule_id DESC</select>
   <insert id="insertRule">INSERT INTO zentide_governance_rule(scene_id,violation_type,rule_description,keywords_json,severity) VALUES(#{sceneId},#{violationType},#{description},#{keywordsJson},#{severity})</insert>
   <update id="updateRule">UPDATE zentide_governance_rule SET violation_type=#{violationType},rule_description=#{description},keywords_json=#{keywordsJson},severity=#{severity},enabled=#{enabled},updated_at=CURRENT_TIMESTAMP(3) WHERE rule_id=#{ruleId}</update>
