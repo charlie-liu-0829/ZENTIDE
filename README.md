@@ -128,14 +128,14 @@ make agent-run
 
 ```bash
 cd backend
-./mvnw -pl zentide-web -am spring-boot:run
+./mvnw -f zentide-web/pom.xml spring-boot:run
 ```
 
 另开终端启动管理端：
 
 ```bash
 cd backend
-./mvnw -pl zentide-admin -am spring-boot:run
+./mvnw -f zentide-admin/pom.xml spring-boot:run
 ```
 
 Web/Admin 不会自动启动或停止 Agent，只调用已经运行的 Agent 服务。
