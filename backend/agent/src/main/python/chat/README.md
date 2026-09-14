@@ -207,7 +207,7 @@ Vue 页面路由：`/community/assistant/:hubId` 负责整个兴趣现场，
 
 启动后在聊天框输入以下测试问题：
 
-- *扫地机器人有哪些主要功能？*（RAG 知识库问答）
+- *社区最近有哪些主要内容？*（RAG 知识库问答）
 - *如果机器人无法正常回充，该如何处理？*（故障排查）
 - *请根据用户数据生成一份个性化使用报告*（报告生成 + 工具调用）
 
@@ -260,7 +260,7 @@ LangChain-ReAct-Agent/
 │   ├── path_tool.py                #   路径工具
 │   └── prompt_loader.py            #   提示词加载
 │
-├── data/                           # 知识库文档（扫地机器人相关）
+├── data/                           # 知识库文档（社区内容相关）
 ├── assets/                         # 效果展示截图
 ├── app.py                          # Streamlit 应用入口
 ├── requirements.txt
