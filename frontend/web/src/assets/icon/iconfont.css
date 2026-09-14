@@ -1,0 +1,97 @@
+@font-face {
+  font-family: "iconfont"; /* Project id 5086253 */
+  src: url('iconfont.ttf?t=1767857108055') format('truetype');
+}
+
+.iconfont {
+  font-family: "iconfont" !important;
+  font-size: 16px;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-edit:before {
+  content: "\e677";
+}
+
+.icon-down:before {
+  content: "\f03b";
+}
+
+.icon-left:before {
+  content: "\f039";
+}
+
+.icon-right:before {
+  content: "\f03a";
+}
+
+.icon-email:before {
+  content: "\e66f";
+}
+
+.icon-checkcode:before {
+  content: "\e626";
+}
+
+.icon-password:before {
+  content: "\e65d";
+}
+
+.icon-success:before {
+  content: "\e663";
+}
+
+.icon-error:before {
+  content: "\ed4f";
+}
+
+.icon-attachment:before {
+  content: "\e600";
+}
+
+.icon-send:before {
+  content: "\e60b";
+}
+
+.icon-full:before {
+  content: "\e655";
+}
+
+.icon-full-esc:before {
+  content: "\e727";
+}
+
+.icon-stop:before {
+  content: "\e7cc";
+}
+
+.icon-image:before {
+  content: "\e63a";
+}
+
+.icon-delete:before {
+  content: "\e60c";
+}
+
+.icon-account:before {
+  content: "\e7ae";
+}
+
+.icon-cart:before {
+  content: "\e7c3";
+}
+
+.icon-robot:before {
+  content: "\e656";
+}
+
+.icon-search:before {
+  content: "\e6dd";
+}
+
+.icon-nodata:before {
+  content: "\e62c";
+}
+

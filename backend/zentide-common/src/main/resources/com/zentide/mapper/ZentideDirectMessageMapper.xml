@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zentide.mapper.ZentideDirectMessageMapper">
+    <select id="countUser" resultType="int">
+        SELECT COUNT(*) FROM user_info WHERE user_id=#{userId} AND status=1
+    </select>
+
+    <insert id="insertMessage" useGeneratedKeys="true" keyProperty="messageId">
+        INSERT INTO zentide_direct_message(sender_id,recipient_id,body,status)
+        VALUES(#{senderId},#{recipientId},#{body},'SENT')
+    </insert>
+
+    <select id="listConversations" resultType="com.zentide.entity.po.ZentideDirectMessage">
+        SELECT m.message_id,m.sender_id,m.recipient_id,m.body,m.status,m.read_at,m.created_at,
+               IF(m.sender_id=#{userId},m.recipient_id,m.sender_id) AS peer_id,
+               u.nick_name AS peer_name,u.avatar AS peer_avatar,
+               (SELECT COUNT(*) FROM zentide_direct_message unread
+                WHERE unread.sender_id=IF(m.sender_id=#{userId},m.recipient_id,m.sender_id)
+                  AND unread.recipient_id=#{userId} AND unread.status='SENT' AND unread.read_at IS NULL) AS unread_count
+        FROM zentide_direct_message m
+        JOIN user_info u ON u.user_id=IF(m.sender_id=#{userId},m.recipient_id,m.sender_id)
+        WHERE (m.sender_id=#{userId} OR m.recipient_id=#{userId}) AND m.status='SENT'
+          AND NOT EXISTS (
+            SELECT 1 FROM zentide_direct_message newer
+            WHERE newer.status='SENT'
+              AND ((newer.sender_id=#{userId} AND newer.recipient_id=IF(m.sender_id=#{userId},m.recipient_id,m.sender_id))
+                OR (newer.recipient_id=#{userId} AND newer.sender_id=IF(m.sender_id=#{userId},m.recipient_id,m.sender_id)))
+              AND (newer.created_at&gt;m.created_at OR (newer.created_at=m.created_at AND newer.message_id&gt;m.message_id))
+          )
+        ORDER BY m.created_at DESC,m.message_id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="listMessages" resultType="com.zentide.entity.po.ZentideDirectMessage">
+        SELECT m.*,u.nick_name AS sender_name,u.avatar AS sender_avatar
+        FROM zentide_direct_message m
+        JOIN user_info u ON u.user_id=m.sender_id
+        WHERE m.status='SENT'
+          AND ((m.sender_id=#{userId} AND m.recipient_id=#{peerId})
+            OR (m.sender_id=#{peerId} AND m.recipient_id=#{userId}))
+        ORDER BY m.created_at DESC,m.message_id DESC
+        LIMIT #{limit}
+    </select>
+
+    <update id="markConversationRead">
+        UPDATE zentide_direct_message SET read_at=CURRENT_TIMESTAMP(3)
+        WHERE sender_id=#{peerId} AND recipient_id=#{userId} AND status='SENT' AND read_at IS NULL
+    </update>
+
+    <select id="countUnread" resultType="int">
+        SELECT COUNT(*) FROM zentide_direct_message
+        WHERE recipient_id=#{userId} AND status='SENT' AND read_at IS NULL
+    </select>
+
+    <select id="searchUsers" resultType="com.zentide.entity.po.ZentideDirectMessage">
+        SELECT u.user_id AS peer_id,u.nick_name AS peer_name,u.avatar AS peer_avatar
+        FROM user_info u
+        WHERE u.status=1 AND u.user_id&lt;&gt;#{userId}
+          AND (u.nick_name LIKE CONCAT('%',#{query},'%') OR u.handle LIKE CONCAT('%',#{query},'%'))
+        ORDER BY CASE WHEN u.nick_name=#{query} OR u.handle=#{query} THEN 0 ELSE 1 END,u.join_time DESC
+        LIMIT #{limit}
+    </select>
+</mapper>

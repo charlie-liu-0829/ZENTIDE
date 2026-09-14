@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zentide.mapper.ZentideBriefingMapper">
+
+    <select id="findDaily" resultType="com.zentide.entity.po.ZentideBriefing">
+        <![CDATA[
+SELECT * FROM zentide_briefing WHERE owner_id=#{ownerId} AND briefing_date=#{briefingDate} AND briefing_type='DAILY' LIMIT 1
+        ]]>
+    </select>
+
+    <insert id="upsertDaily">
+        <![CDATA[
+INSERT INTO zentide_briefing(owner_id,briefing_date,briefing_type,headline,body_json,item_count,status) VALUES(#{ownerId},#{briefingDate},'DAILY',#{headline},#{bodyJson},#{itemCount},'PUBLISHED') ON DUPLICATE KEY UPDATE headline=VALUES(headline),body_json=VALUES(body_json),item_count=VALUES(item_count),status='PUBLISHED'
+        ]]>
+    </insert>
+
+</mapper>

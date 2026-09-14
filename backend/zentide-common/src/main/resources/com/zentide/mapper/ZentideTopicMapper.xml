@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zentide.mapper.ZentideTopicMapper">
+
+    <select id="discover" resultType="com.zentide.entity.po.ZentideTopic">
+        <![CDATA[
+SELECT t.*, (SELECT COUNT(*) FROM zentide_user_action f WHERE f.topic_id=t.topic_id AND f.action_type='FOLLOW' AND f.status='ACTIVE') AS follower_count, (SELECT COUNT(*) FROM zentide_topic_link s WHERE s.topic_id=t.topic_id AND s.source_id IS NOT NULL AND s.status='ACTIVE') AS source_count FROM zentide_topic t WHERE t.status='ACTIVE' AND (#{query}='' OR t.canonical_name LIKE CONCAT('%',#{query},'%')) ORDER BY follower_count DESC, source_count DESC, t.topic_id DESC LIMIT #{limit}
+        ]]>
+    </select>
+
+    <select id="listFollowing" resultType="com.zentide.entity.po.ZentideTopic">
+        <![CDATA[
+SELECT t.*, (SELECT COUNT(*) FROM zentide_user_action x WHERE x.topic_id=t.topic_id AND x.action_type='FOLLOW' AND x.status='ACTIVE') AS follower_count, (SELECT COUNT(*) FROM zentide_topic_link s WHERE s.topic_id=t.topic_id AND s.source_id IS NOT NULL AND s.status='ACTIVE') AS source_count, TRUE AS followed FROM zentide_topic t JOIN zentide_user_action f ON f.topic_id=t.topic_id AND f.action_type='FOLLOW' AND f.status='ACTIVE' WHERE f.user_id=#{userId} AND t.status='ACTIVE' ORDER BY f.created_at DESC
+        ]]>
+    </select>
+
+    <select id="findTopic" resultType="com.zentide.entity.po.ZentideTopic">
+        <![CDATA[
+SELECT * FROM zentide_topic WHERE topic_id=#{topicId} AND status='ACTIVE' LIMIT 1
+        ]]>
+    </select>
+
+    <select id="findByName" resultType="com.zentide.entity.po.ZentideTopic">
+        <![CDATA[
+SELECT * FROM zentide_topic WHERE canonical_name=#{canonicalName} LIMIT 1
+        ]]>
+    </select>
+
+    <insert id="insertTopic" useGeneratedKeys="true" keyProperty="topicId">
+        <![CDATA[
+INSERT INTO zentide_topic(canonical_name,topic_type,status) VALUES(#{canonicalName},#{topicType},'ACTIVE')
+        ]]>
+    </insert>
+
+    <insert id="follow">
+        <![CDATA[
+INSERT INTO zentide_user_action(user_id,topic_id,action_type,action_value,status) VALUES(#{userId},#{topicId},'FOLLOW',#{notificationMode},'ACTIVE') ON DUPLICATE KEY UPDATE action_value=VALUES(action_value),status='ACTIVE',updated_at=CURRENT_TIMESTAMP(3)
+        ]]>
+    </insert>
+
+    <delete id="unfollow">
+        <![CDATA[
+DELETE FROM zentide_user_action WHERE topic_id=#{topicId} AND user_id=#{userId} AND action_type='FOLLOW'
+        ]]>
+    </delete>
+
+    <select id="listSources" resultType="com.zentide.entity.po.ZentideTopicSource">
+        <![CDATA[
+SELECT ts.topic_link_id AS topic_source_id,ts.topic_id,ts.source_id,ts.link_role AS platform_key,ts.status AS observation_status,ts.created_by AS added_by,ts.created_at,ts.updated_at,s.source_name,s.source_type,s.canonical_url,s.status AS source_status FROM zentide_topic_link ts JOIN zentide_source s ON s.source_id=ts.source_id WHERE ts.topic_id=#{topicId} AND ts.source_id IS NOT NULL ORDER BY ts.created_at DESC
+        ]]>
+    </select>
+
+    <insert id="attachChangeForSource">
+        <![CDATA[
+INSERT IGNORE INTO zentide_topic_link(topic_id,change_id,link_role) SELECT topic_id,#{changeId},'SOURCE' FROM zentide_topic_link WHERE source_id=#{sourceId} AND status='ACTIVE'
+        ]]>
+    </insert>
+
+    <select id="listFeed" resultType="com.zentide.entity.po.ZentideChange">
+        <![CDATA[
+SELECT c.*, (SELECT COUNT(*) FROM zentide_change_discussion d WHERE d.change_id=c.change_id AND d.status='PUBLISHED') AS discussion_count FROM zentide_change c JOIN zentide_topic_link tc ON tc.change_id=c.change_id WHERE tc.topic_id=#{topicId} AND c.status='PUBLISHED' AND c.verification_status='VERIFIED' ORDER BY COALESCE(c.occurred_at,c.published_at,c.created_at) DESC LIMIT #{limit}
+        ]]>
+    </select>
+
+</mapper>

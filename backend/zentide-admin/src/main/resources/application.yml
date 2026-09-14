@@ -1,0 +1,79 @@
+server:
+  port: 6061
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: zentide-admin
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
+  datasource:
+    url: ${ZENTIDE_DB_URL:jdbc:mysql://127.0.0.1:3306/zentide?allowMultiQueries=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=GMT%2B8&characterEncoding=UTF-8}
+    username: ${ZENTIDE_DB_USERNAME:root}
+    password: ${ZENTIDE_DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-init-sql: "SET time_zone = '+08:00'"
+  flyway:
+    enabled: ${ZENTIDE_FLYWAY_ENABLED:false}
+    baseline-on-migrate: true
+    baseline-version: ${ZENTIDE_FLYWAY_BASELINE_VERSION:35}
+  task:
+    scheduling:
+      pool:
+        size: 5
+  data:
+    redis:
+      host: ${ZENTIDE_REDIS_HOST:127.0.0.1}
+      port: ${ZENTIDE_REDIS_PORT:6379}
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+project:
+  folder: ./data
+
+admin:
+  account: ${ZENTIDE_ADMIN_ACCOUNT:admin}
+  password: ${ZENTIDE_ADMIN_PASSWORD:change-me}
+
+log:
+  root:
+    level: info
+
+zentide:
+  governance:
+    base-url: ${ZENTIDE_GOVERNANCE_URL:http://127.0.0.1:8093}
+    internal-token: ${ZENTIDE_AGENT_INTERNAL_TOKEN:}
+  knowledge:
+    snapshot-dir: ${ZENTIDE_KNOWLEDGE_SNAPSHOT_DIR:./data/knowledge-snapshots}
+  fetch:
+    scheduler-enabled: true
+    interval-ms: 1800000
+    batch-size: 50
+  crawl:
+    scheduler-enabled: true
+    dispatch-delay-ms: 30000
+  notification:
+    match-delay-ms: 30000
+    scheduler-enabled: true
+    dispatch-delay-ms: 30000
+    daily-hour: 9
+    zone-id: Asia/Shanghai
+  analysis:
+    scheduler-enabled: true
+    delay-ms: 60000
+    ai-enabled: false
+    base-url: https://api.openai.com
+    api-key: ${ZENTIDE_ANALYSIS_API_KEY:}
+    model: gpt-5-mini

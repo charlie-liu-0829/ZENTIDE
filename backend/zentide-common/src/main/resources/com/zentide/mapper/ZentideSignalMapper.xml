@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zentide.mapper.ZentideSignalMapper">
+
+    <select id="listActive" resultType="com.zentide.entity.po.ZentideSignal">
+        <![CDATA[
+SELECT s.*, src.source_name,
+       (SELECT MIN(st.topic_id) FROM zentide_topic_link st WHERE st.signal_id=s.signal_id) AS topic_id,
+       (SELECT GROUP_CONCAT(DISTINCT t.canonical_name ORDER BY t.canonical_name SEPARATOR ' · ')
+          FROM zentide_topic_link st JOIN zentide_topic t ON t.topic_id=st.topic_id
+         WHERE st.signal_id=s.signal_id) AS topic_names
+FROM zentide_signal s
+JOIN zentide_source src ON src.source_id=s.source_id
+WHERE s.status IN ('OBSERVING','ASSESSING','CONFLICTED')
+ORDER BY s.discovered_at DESC
+LIMIT #{limit}
+        ]]>
+    </select>
+
+</mapper>

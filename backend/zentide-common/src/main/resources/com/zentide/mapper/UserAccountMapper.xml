@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zentide.mapper.UserAccountMapper">
+
+    <resultMap id="publicUser" type="com.zentide.entity.po.UserInfo">
+        <id column="user_id" property="userId"/>
+        <result column="nick_name" property="nickName"/>
+        <result column="avatar" property="avatar"/>
+        <result column="email" property="email"/>
+        <result column="sex" property="sex"/>
+        <result column="join_time" property="joinTime"/>
+        <result column="last_login_time" property="lastLoginTime"/>
+        <result column="last_login_ip" property="lastLoginIp"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <resultMap id="credentialUser" type="com.zentide.entity.po.UserInfo" extends="publicUser">
+        <result column="password" property="password"/>
+        <result column="security_question" property="securityQuestion"/>
+        <result column="security_answer_hash" property="securityAnswerHash"/>
+    </resultMap>
+
+    <sql id="publicColumns">
+        u.user_id,u.nick_name,u.avatar,u.email,u.sex,u.join_time,
+        u.last_login_time,u.last_login_ip,u.status
+    </sql>
+
+    <sql id="queryConditions">
+        <where>
+            <if test="query.userId != null and query.userId != ''">
+                AND u.user_id=#{query.userId}
+            </if>
+            <if test="query.userIdFuzzy != null and query.userIdFuzzy != ''">
+                AND u.user_id LIKE CONCAT('%',#{query.userIdFuzzy},'%')
+            </if>
+            <if test="query.nickName != null and query.nickName != ''">
+                AND u.nick_name=#{query.nickName}
+            </if>
+            <if test="query.nickNameFuzzy != null and query.nickNameFuzzy != ''">
+                AND u.nick_name LIKE CONCAT('%',#{query.nickNameFuzzy},'%')
+            </if>
+            <if test="query.email != null and query.email != ''">
+                AND u.email=#{query.email}
+            </if>
+            <if test="query.emailFuzzy != null and query.emailFuzzy != ''">
+                AND u.email LIKE CONCAT('%',#{query.emailFuzzy},'%')
+            </if>
+            <if test="query.sex != null">
+                AND u.sex=#{query.sex}
+            </if>
+            <if test="query.status != null">
+                AND u.status=#{query.status}
+            </if>
+            <if test="query.joinTimeStart != null and query.joinTimeStart != ''">
+                AND u.join_time &gt;= STR_TO_DATE(#{query.joinTimeStart},'%Y-%m-%d')
+            </if>
+            <if test="query.joinTimeEnd != null and query.joinTimeEnd != ''">
+                AND u.join_time &lt; DATE_ADD(STR_TO_DATE(#{query.joinTimeEnd},'%Y-%m-%d'),INTERVAL 1 DAY)
+            </if>
+        </where>
+    </sql>
+
+    <select id="list" resultMap="publicUser">
+        SELECT <include refid="publicColumns"/>
+        FROM user_info u
+        <include refid="queryConditions"/>
+        ORDER BY u.join_time DESC
+        <if test="query.simplePage != null">
+            LIMIT #{query.simplePage.start},#{query.simplePage.end}
+        </if>
+    </select>
+
+    <select id="count" resultType="int">
+        SELECT COUNT(*) FROM user_info u
+        <include refid="queryConditions"/>
+    </select>
+
+    <select id="findPublicById" resultMap="publicUser">
+        SELECT <include refid="publicColumns"/> FROM user_info u WHERE u.user_id=#{userId} LIMIT 1
+    </select>
+
+    <select id="findCredentialsById" resultMap="credentialUser">
+        SELECT <include refid="publicColumns"/>,u.password FROM user_info u WHERE u.user_id=#{userId} LIMIT 1
+    </select>
+
+    <select id="findCredentialsByEmail" resultMap="credentialUser">
+        SELECT <include refid="publicColumns"/>,u.password,u.security_question,u.security_answer_hash FROM user_info u WHERE u.email=#{email} LIMIT 1
+    </select>
+
+    <select id="findSecurityQuestionByEmail" resultType="string">
+        SELECT security_question FROM user_info WHERE email=#{email} LIMIT 1
+    </select>
+
+    <update id="updateSecurityQuestion">
+        UPDATE user_info SET security_question=#{question}, security_answer_hash=#{answerHash} WHERE user_id=#{userId}
+    </update>
+
+    <update id="resetPasswordByEmail">
+        UPDATE user_info SET password=#{password} WHERE email=#{email}
+    </update>
+
+    <select id="findSearchHistory" resultType="string">
+        SELECT CAST(search_history_json AS CHAR) FROM user_info WHERE user_id=#{userId} LIMIT 1
+    </select>
+
+    <update id="updateSearchHistory">
+        UPDATE user_info SET search_history_json=CAST(#{historyJson} AS JSON) WHERE user_id=#{userId}
+    </update>
+
+    <select id="countByEmail" resultType="int">
+        SELECT COUNT(*) FROM user_info WHERE email=#{email}
+    </select>
+
+    <select id="countByNickname" resultType="int">
+        SELECT COUNT(*) FROM user_info WHERE nick_name=#{nickName}
+    </select>
+
+    <insert id="insert">
+        INSERT INTO user_info(user_id,nick_name,email,password,security_question,security_answer_hash,sex,join_time,status)
+        VALUES(#{userId},#{nickName},#{email},#{password},#{securityQuestion},#{securityAnswerHash},#{sex},#{joinTime},#{status})
+    </insert>
+
+    <update id="updateById">
+        UPDATE user_info
+        <set>
+            <if test="changes.nickName != null">nick_name=#{changes.nickName},</if>
+            <if test="changes.avatar != null">avatar=#{changes.avatar},</if>
+            <if test="changes.email != null">email=#{changes.email},</if>
+            <if test="changes.password != null">password=#{changes.password},</if>
+            <if test="changes.sex != null">sex=#{changes.sex},</if>
+            <if test="changes.lastLoginTime != null">last_login_time=#{changes.lastLoginTime},</if>
+            <if test="changes.lastLoginIp != null">last_login_ip=#{changes.lastLoginIp},</if>
+            <if test="changes.status != null">status=#{changes.status},</if>
+        </set>
+        WHERE user_id=#{userId}
+    </update>
+
+</mapper>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zentide.mapper.ZentideInsightMapper">
+
+    <select id="listVerifiedChanges" resultType="com.zentide.entity.po.ZentideChange">
+        <![CDATA[
+SELECT * FROM zentide_change WHERE status='PUBLISHED' AND verification_status='VERIFIED' ORDER BY COALESCE(occurred_at,published_at,created_at) DESC LIMIT #{limit}
+        ]]>
+    </select>
+
+    <select id="listActiveTopics" resultType="com.zentide.entity.po.ZentideRadarTopic">
+        <![CDATA[
+SELECT rt.topic_link_id AS radar_topic_id,rt.radar_id,rt.topic_id,rt.weight,rt.include_descendants,rt.note,t.canonical_name,t.topic_type FROM zentide_radar r JOIN zentide_topic_link rt ON rt.radar_id=r.radar_id JOIN zentide_topic t ON t.topic_id=rt.topic_id WHERE r.owner_id=#{ownerId} AND r.status='ACTIVE' AND t.status='ACTIVE' ORDER BY rt.weight DESC,t.canonical_name
+        ]]>
+    </select>
+
+    <insert id="upsertInsight" useGeneratedKeys="true" keyProperty="insightId">
+        <![CDATA[
+INSERT INTO zentide_insight(owner_id,change_id,relevance_score,title,body,why_json,status) VALUES(#{ownerId},#{changeId},#{relevanceScore},#{title},#{body},#{whyJson},'PUBLISHED') ON DUPLICATE KEY UPDATE relevance_score=VALUES(relevance_score),title=VALUES(title),body=VALUES(body),why_json=VALUES(why_json),status=IF(status='DISMISSED','DISMISSED','PUBLISHED'),updated_at=CURRENT_TIMESTAMP(3)
+        ]]>
+    </insert>
+
+    <select id="listPublished" resultType="com.zentide.entity.po.ZentideInsight">
+        <![CDATA[
+SELECT i.*,f.action_value AS feedback_type FROM zentide_insight i JOIN zentide_change c ON c.change_id=i.change_id AND c.status='PUBLISHED' AND c.verification_status='VERIFIED' LEFT JOIN zentide_user_action f ON f.insight_id=i.insight_id AND f.user_id=i.owner_id AND f.action_type='FEEDBACK' AND f.status='ACTIVE' WHERE i.owner_id=#{ownerId} AND i.status='PUBLISHED' ORDER BY i.relevance_score DESC,i.updated_at DESC LIMIT #{limit}
+        ]]>
+    </select>
+
+    <select id="findOwned" resultType="com.zentide.entity.po.ZentideInsight">
+        <![CDATA[
+SELECT * FROM zentide_insight WHERE insight_id=#{insightId} AND owner_id=#{ownerId} LIMIT 1
+        ]]>
+    </select>
+
+    <insert id="upsertFeedback">
+        <![CDATA[
+INSERT INTO zentide_user_action(user_id,insight_id,action_type,action_value,status,note) VALUES(#{ownerId},#{insightId},'FEEDBACK',#{feedbackType},'ACTIVE',#{note}) ON DUPLICATE KEY UPDATE action_value=VALUES(action_value),status='ACTIVE',note=VALUES(note),updated_at=CURRENT_TIMESTAMP(3)
+        ]]>
+    </insert>
+
+    <update id="updateStatus">
+        <![CDATA[
+UPDATE zentide_insight SET status=#{status} WHERE insight_id=#{insightId} AND owner_id=#{ownerId}
+        ]]>
+    </update>
+
+</mapper>

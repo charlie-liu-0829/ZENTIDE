@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zentide.mapper.ZentideOutboxEventMapper">
+
+    <insert id="insert">
+        <![CDATA[
+INSERT INTO zentide_outbox_event(id,event_id,aggregate_type,aggregate_id,event_type,event_version,payload,trace_id,status,retry_count,next_retry_at,created_at) VALUES(#{id},#{eventId},#{aggregateType},#{aggregateId},#{eventType},#{eventVersion},CAST(#{payloadJson} AS JSON),#{traceId},#{status},#{retryCount},#{nextRetryAt},#{createdAt})
+        ]]>
+    </insert>
+
+    <select id="findDue" resultType="com.zentide.entity.po.ZentideOutboxEvent">
+        <![CDATA[
+SELECT id,event_id,aggregate_type,aggregate_id,event_type,event_version,CAST(payload AS CHAR) AS payload_json,trace_id,status,retry_count,next_retry_at,created_at,published_at FROM zentide_outbox_event WHERE status='PENDING' AND (next_retry_at IS NULL OR next_retry_at <= #{now}) ORDER BY created_at ASC LIMIT #{limit}
+        ]]>
+    </select>
+
+    <update id="claim">
+        <![CDATA[
+UPDATE zentide_outbox_event SET status='PUBLISHING' WHERE event_id=#{eventId} AND status='PENDING' AND (next_retry_at IS NULL OR next_retry_at <= #{now})
+        ]]>
+    </update>
+
+    <update id="markSent">
+        <![CDATA[
+UPDATE zentide_outbox_event SET status='SENT',published_at=#{publishedAt},next_retry_at=NULL WHERE event_id=#{eventId} AND status='PUBLISHING'
+        ]]>
+    </update>
+
+    <update id="reschedule">
+        <![CDATA[
+UPDATE zentide_outbox_event SET status='PENDING',retry_count=#{retryCount},next_retry_at=#{nextRetryAt} WHERE event_id=#{eventId} AND status='PUBLISHING'
+        ]]>
+    </update>
+
+    <update id="markFailed">
+        <![CDATA[
+UPDATE zentide_outbox_event SET status='FAILED',retry_count=#{retryCount},next_retry_at=NULL WHERE event_id=#{eventId} AND status='PUBLISHING'
+        ]]>
+    </update>
+
+</mapper>

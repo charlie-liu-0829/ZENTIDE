@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zentide.mapper.ZentideRetrievalMapper">
+
+    <delete id="deleteByDocumentVersionId">
+        <![CDATA[
+DELETE FROM zentide_retrieval_chunk WHERE document_version_id=#{documentVersionId}
+        ]]>
+    </delete>
+
+    <insert id="insertChunk" useGeneratedKeys="true" keyProperty="chunkId">
+        <![CDATA[
+INSERT INTO zentide_retrieval_chunk(document_version_id,chunk_no,content_start,content_end,chunk_text,content_hash,status) VALUES(#{documentVersionId},#{chunkNo},#{contentStart},#{contentEnd},#{chunkText},#{contentHash},'ACTIVE')
+        ]]>
+    </insert>
+
+    <select id="listUnindexedDocumentVersions" resultType="com.zentide.entity.po.ZentideDocumentVersion">
+        <![CDATA[
+SELECT dv.* FROM zentide_document_version dv LEFT JOIN zentide_retrieval_chunk rc ON rc.document_version_id=dv.document_version_id AND rc.status='ACTIVE' WHERE rc.chunk_id IS NULL ORDER BY dv.document_version_id LIMIT #{limit}
+        ]]>
+    </select>
+
+    <select id="searchVerified" resultType="com.zentide.entity.vo.ZentideResearchResult">
+        <![CDATA[
+SELECT rc.chunk_id AS chunkId, rc.chunk_text AS excerpt, dv.title, s.source_id AS sourceId,
+       s.source_name AS sourceName,
+       COALESCE((SELECT MIN(e.source_url) FROM zentide_evidence e JOIN zentide_change c ON c.change_id=e.change_id
+                 WHERE e.document_version_id=dv.document_version_id AND c.status='PUBLISHED' AND c.verification_status='VERIFIED'), s.canonical_url) AS sourceUrl,
+       dv.document_version_id AS documentVersionId, dv.published_at AS publishedAt,
+       dv.content_hash AS contentHash,
+       (SELECT MIN(e.evidence_id) FROM zentide_evidence e JOIN zentide_change c ON c.change_id=e.change_id
+        WHERE e.document_version_id=dv.document_version_id AND c.status='PUBLISHED' AND c.verification_status='VERIFIED') AS evidenceId,
+       (SELECT MIN(c.change_id) FROM zentide_evidence e JOIN zentide_change c ON c.change_id=e.change_id
+        WHERE e.document_version_id=dv.document_version_id AND c.status='PUBLISHED' AND c.verification_status='VERIFIED') AS changeId
+FROM zentide_retrieval_chunk rc
+JOIN zentide_document_version dv ON dv.document_version_id=rc.document_version_id
+JOIN zentide_document d ON d.document_id=dv.document_id
+JOIN zentide_source s ON s.source_id=d.source_id
+WHERE rc.status='ACTIVE'
+  AND EXISTS (SELECT 1 FROM zentide_evidence e JOIN zentide_change c ON c.change_id=e.change_id
+              WHERE e.document_version_id=dv.document_version_id AND c.status='PUBLISHED' AND c.verification_status='VERIFIED')
+  AND (LOWER(rc.chunk_text) LIKE CONCAT('%',LOWER(#{query}),'%') OR LOWER(dv.title) LIKE CONCAT('%',LOWER(#{query}),'%'))
+ORDER BY COALESCE(dv.published_at,dv.created_at) DESC, rc.chunk_id DESC
+LIMIT #{limit}
+        ]]>
+    </select>
+
+</mapper>

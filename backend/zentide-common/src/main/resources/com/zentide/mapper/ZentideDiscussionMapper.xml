@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zentide.mapper.ZentideDiscussionMapper">
+
+    <select id="countPublishedChange" resultType="int">
+        <![CDATA[
+SELECT COUNT(*) FROM zentide_change WHERE change_id=#{changeId} AND status='PUBLISHED' AND verification_status='VERIFIED'
+        ]]>
+    </select>
+
+    <select id="listPublished" resultType="com.zentide.entity.po.ZentideChangeDiscussion">
+        <![CDATA[
+SELECT d.*, '社区成员' AS author_label FROM zentide_change_discussion d JOIN zentide_change c ON c.change_id=d.change_id AND c.status='PUBLISHED' AND c.verification_status='VERIFIED' WHERE d.change_id=#{changeId} AND d.status='PUBLISHED' ORDER BY COALESCE(d.parent_discussion_id,d.discussion_id), d.parent_discussion_id IS NOT NULL, d.created_at ASC LIMIT #{limit}
+        ]]>
+    </select>
+
+    <select id="findPublishedInChange" resultType="com.zentide.entity.po.ZentideChangeDiscussion">
+        <![CDATA[
+SELECT * FROM zentide_change_discussion WHERE discussion_id=#{discussionId} AND change_id=#{changeId} AND status='PUBLISHED' LIMIT 1
+        ]]>
+    </select>
+
+    <select id="countEvidenceForPublishedChange" resultType="int">
+        <![CDATA[
+SELECT COUNT(*) FROM zentide_evidence e JOIN zentide_change c ON c.change_id=e.change_id WHERE e.evidence_id=#{evidenceId} AND e.change_id=#{changeId} AND c.status='PUBLISHED' AND c.verification_status='VERIFIED'
+        ]]>
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="discussionId">
+        <![CDATA[
+INSERT INTO zentide_change_discussion(change_id,author_id,parent_discussion_id,evidence_id,body,status) VALUES(#{changeId},#{authorId},#{parentDiscussionId},#{evidenceId},#{body},'PUBLISHED')
+        ]]>
+    </insert>
+
+    <update id="removeOwned">
+        <![CDATA[
+UPDATE zentide_change_discussion SET status='REMOVED' WHERE discussion_id=#{discussionId} AND author_id=#{authorId} AND status='PUBLISHED'
+        ]]>
+    </update>
+
+</mapper>

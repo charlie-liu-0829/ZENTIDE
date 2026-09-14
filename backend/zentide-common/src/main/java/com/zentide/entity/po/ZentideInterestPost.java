@@ -1,0 +1,4 @@
+package com.zentide.entity.po;
+import lombok.Data;
+import java.time.LocalDateTime;
+@Data public class ZentideInterestPost { private Long postId; private Long hubId; private String hubName; private String authorId; private String authorLabel; private Long entityId; private Long eventId; private String eventTitle; private Long changeId; private String changeTitle; private String changeSummary; private Long topicId; private String topicNames; private String postType; private String postTypeLabel; private String title; private String body; private String mediaJson; private String coverUrl; private String status; private Integer likeCount; private Integer commentCount; private Integer bookmarkCount; private Integer viewCount; private Boolean liked; private Boolean bookmarked; private String myAction; private LocalDateTime createdAt; private LocalDateTime updatedAt; }

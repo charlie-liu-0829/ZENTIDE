@@ -1,0 +1,59 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      TZ: ${ZENTIDE_TIME_ZONE:-Asia/Shanghai}
+      MYSQL_DATABASE: zentide
+      MYSQL_USER: zentide
+      MYSQL_PASSWORD: ${ZENTIDE_DB_PASSWORD:?ZENTIDE_DB_PASSWORD must be set}
+      MYSQL_ROOT_PASSWORD: ${ZENTIDE_DB_ROOT_PASSWORD:?ZENTIDE_DB_ROOT_PASSWORD must be set}
+    # Docker 仅作为可选开发环境，默认映射到本机 MySQL 标准端口。
+    # 如本机 3306 已被占用，可通过 ZENTIDE_MYSQL_PORT 覆盖，并同步设置 ZENTIDE_DB_URL。
+    ports:
+      - "${ZENTIDE_MYSQL_PORT:-3306}:3306"
+    volumes:
+      - zentide_mysql_data:/var/lib/mysql
+      - ./zentide.sql:/docker-entrypoint-initdb.d/001-zentide.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    environment:
+      TZ: ${ZENTIDE_TIME_ZONE:-Asia/Shanghai}
+    ports:
+      - "${ZENTIDE_REDIS_PORT:-6379}:6379"
+    volumes:
+      - zentide_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Optional full-text search. Start with `docker compose --profile search up -d`.
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    profiles: ["search"]
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "${ZENTIDE_ELASTICSEARCH_PORT:-9200}:9200"
+    volumes:
+      - zentide_elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  zentide_mysql_data:
+  zentide_redis_data:
+  zentide_elasticsearch_data:

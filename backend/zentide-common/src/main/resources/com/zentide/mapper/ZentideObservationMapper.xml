@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zentide.mapper.ZentideObservationMapper">
+
+    <select id="list" resultType="com.zentide.entity.po.ZentideObservationActivity">
+        <![CDATA[
+SELECT a.*, src.source_name, s.title AS signal_title, c.title AS change_title
+FROM zentide_observation_activity a
+LEFT JOIN zentide_source src ON src.source_id=a.source_id
+LEFT JOIN zentide_signal s ON s.signal_id=a.signal_id
+LEFT JOIN zentide_change c ON c.change_id=a.change_id
+WHERE (#{signalId} IS NULL OR a.signal_id=#{signalId})
+  AND (#{changeId} IS NULL OR a.change_id=#{changeId})
+ORDER BY a.created_at DESC,a.activity_id DESC
+LIMIT #{limit}
+        ]]>
+    </select>
+
+</mapper>

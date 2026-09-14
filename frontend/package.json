@@ -1,0 +1,22 @@
+{
+  "name": "zentide-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "npm@10.9.2",
+  "engines": {
+    "node": "22.14.0"
+  },
+  "scripts": {
+    "dev": "npm --prefix web run dev",
+    "dev:web": "npm --prefix web run dev",
+    "dev:admin": "npm --prefix admin run dev",
+    "build": "npm run build:web && npm run build:admin",
+    "build:web": "npm --prefix web run build",
+    "build:admin": "npm --prefix admin run build",
+    "install:all": "npm --prefix web ci && npm --prefix admin ci",
+    "lint": "npm --prefix web run lint && npm --prefix admin run lint",
+    "format:check": "npm --prefix web run format:check && npm --prefix admin run format:check",
+    "test": "npm --prefix web run test && npm --prefix admin run test",
+    "test:e2e": "npm --prefix web run test:e2e"
+  }
+}

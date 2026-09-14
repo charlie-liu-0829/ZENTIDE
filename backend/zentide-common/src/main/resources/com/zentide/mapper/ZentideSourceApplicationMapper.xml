@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zentide.mapper.ZentideSourceApplicationMapper">
+
+    <select id="find" resultType="com.zentide.entity.po.ZentideSourceApplication">
+        <![CDATA[
+SELECT * FROM zentide_source_application WHERE application_id=#{applicationId} LIMIT 1
+        ]]>
+    </select>
+
+    <select id="list" resultType="com.zentide.entity.po.ZentideSourceApplication">
+        <![CDATA[
+SELECT * FROM zentide_source_application ORDER BY FIELD(status,'SUBMITTED','APPROVED','TRIAL_FAILED','TRIAL_PASSED','ACTIVATED','REJECTED'), created_at DESC
+        ]]>
+    </select>
+
+    <select id="findActiveTopic" resultType="java.lang.Long">
+        <![CDATA[
+SELECT * FROM zentide_topic WHERE topic_id=#{topicId} AND status='ACTIVE' LIMIT 1
+        ]]>
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="applicationId">
+        <![CDATA[
+INSERT INTO zentide_source_application(topic_id,applicant_id,source_name,source_type,canonical_url,canonical_url_hash,trust_tier,status) VALUES(#{topicId},#{applicantId},#{sourceName},#{sourceType},#{canonicalUrl},#{canonicalUrlHash},#{trustTier},'SUBMITTED')
+        ]]>
+    </insert>
+
+    <update id="review">
+        <![CDATA[
+UPDATE zentide_source_application SET status=#{status},review_note=#{note},reviewer_account=#{actor},reviewed_at=#{at} WHERE application_id=#{applicationId} AND status=#{expected}
+        ]]>
+    </update>
+
+    <update id="startTrial">
+        <![CDATA[
+UPDATE zentide_source_application SET status='TRIAL_RUNNING' WHERE application_id=#{applicationId} AND status IN ('APPROVED','TRIAL_FAILED')
+        ]]>
+    </update>
+
+    <update id="finishTrial">
+        <![CDATA[
+UPDATE zentide_source_application SET status=#{status},trial_result_json=#{result},trialed_at=#{at} WHERE application_id=#{applicationId} AND status='TRIAL_RUNNING'
+        ]]>
+    </update>
+
+    <select id="findSourceByUrlHash" resultType="com.zentide.entity.po.ZentideSource">
+        <![CDATA[
+SELECT * FROM zentide_source WHERE canonical_url_hash=#{urlHash} LIMIT 1
+        ]]>
+    </select>
+
+    <insert id="insertActiveSource" useGeneratedKeys="true" keyProperty="sourceId">
+        <![CDATA[
+INSERT INTO zentide_source(source_name,source_type,canonical_url,canonical_url_hash,trust_tier,adapter_key,status,policy_json) VALUES(#{sourceName},#{sourceType},#{canonicalUrl},#{canonicalUrlHash},#{trustTier},#{adapterKey},'ACTIVE',#{policyJson})
+        ]]>
+    </insert>
+
+    <insert id="attachTopicSource">
+        <![CDATA[
+INSERT IGNORE INTO zentide_topic_link(topic_id,source_id,link_role,status,created_by) VALUES(#{topicId},#{sourceId},#{platformKey},'ACTIVE',#{addedBy})
+        ]]>
+    </insert>
+
+    <update id="activate">
+        <![CDATA[
+UPDATE zentide_source_application SET status='ACTIVATED',source_id=#{sourceId},reviewer_account=#{actor},activated_at=#{at} WHERE application_id=#{applicationId} AND status='TRIAL_PASSED'
+        ]]>
+    </update>
+
+    <insert id="addAudit">
+        <![CDATA[
+INSERT INTO zentide_fact_audit(actor_type,actor_id,action,target_type,target_id,detail_json) VALUES(#{actorType},#{actorId},#{action},'SOURCE_APPLICATION',CAST(#{applicationId} AS CHAR),JSON_OBJECT('note',#{note},'detail',#{detail}))
+        ]]>
+    </insert>
+
+</mapper>

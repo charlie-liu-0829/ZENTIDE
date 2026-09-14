@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zentide.mapper.ZentideChangeReviewMapper">
+
+    <select id="listCandidates" resultType="com.zentide.entity.po.ZentideChange">
+        <![CDATA[
+SELECT * FROM zentide_change WHERE status='CANDIDATE' ORDER BY created_at ASC LIMIT #{limit}
+        ]]>
+    </select>
+
+    <select id="findChange" resultType="com.zentide.entity.po.ZentideChange">
+        <![CDATA[
+SELECT * FROM zentide_change WHERE change_id=#{changeId} LIMIT 1
+        ]]>
+    </select>
+
+    <select id="countFactClaims" resultType="int">
+        <![CDATA[
+SELECT COUNT(*) FROM zentide_claim WHERE change_id=#{changeId} AND claim_type='FACT'
+        ]]>
+    </select>
+
+    <select id="countCoveredFactClaims" resultType="int">
+        <![CDATA[
+SELECT COUNT(DISTINCT c.claim_id) FROM zentide_claim c JOIN zentide_evidence e ON e.claim_id=c.claim_id WHERE c.change_id=#{changeId} AND c.claim_type='FACT'
+        ]]>
+    </select>
+
+    <update id="publishVerified">
+        <![CDATA[
+UPDATE zentide_change SET status='PUBLISHED',verification_status='VERIFIED',published_at=COALESCE(published_at,NOW(3)) WHERE change_id=#{changeId} AND status='CANDIDATE' AND verification_status='UNVERIFIED'
+        ]]>
+    </update>
+
+    <update id="verifyClaims">
+        <![CDATA[
+UPDATE zentide_claim SET status='VERIFIED' WHERE change_id=#{changeId} AND status='CANDIDATE'
+        ]]>
+    </update>
+
+    <insert id="insertVerificationAudit">
+        <![CDATA[
+INSERT INTO zentide_fact_audit(actor_type,actor_id,action,target_type,target_id,detail_json) VALUES('ADMIN',#{actorId},'VERIFY_AND_PUBLISH','CHANGE',#{changeId},JSON_OBJECT('verification','VERIFIED'))
+        ]]>
+    </insert>
+
+    <update id="promoteLinkedSignals">
+        <![CDATA[
+UPDATE zentide_signal SET status='PROMOTED',promoted_at=CURRENT_TIMESTAMP(3) WHERE linked_change_id=#{changeId} AND status IN ('OBSERVING','ASSESSING','CONFLICTED')
+        ]]>
+    </update>
+
+    <insert id="insertPromotionActivities">
+        <![CDATA[
+INSERT INTO zentide_observation_activity(signal_id,change_id,source_id,stage,status,message) SELECT signal_id,#{changeId},source_id,'VERIFIED','COMPLETED','潮源与变化已完成校准，浪花形成潮变' FROM zentide_signal WHERE linked_change_id=#{changeId}
+        ]]>
+    </insert>
+
+</mapper>

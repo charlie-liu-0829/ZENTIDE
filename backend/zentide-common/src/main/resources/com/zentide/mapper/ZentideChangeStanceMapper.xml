@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zentide.mapper.ZentideChangeStanceMapper">
+
+    <select id="countPublishedChange" resultType="int">
+        <![CDATA[
+SELECT COUNT(*) FROM zentide_change WHERE change_id=#{changeId} AND status='PUBLISHED' AND verification_status='VERIFIED'
+        ]]>
+    </select>
+
+    <insert id="upsert">
+        <![CDATA[
+INSERT INTO zentide_user_action(user_id,change_id,action_type,action_value,status) VALUES(#{userId},#{changeId},'STANCE',#{stanceType},'ACTIVE') ON DUPLICATE KEY UPDATE action_value=VALUES(action_value),status='ACTIVE',updated_at=CURRENT_TIMESTAMP(3)
+        ]]>
+    </insert>
+
+    <select id="summarize" resultType="com.zentide.entity.vo.ZentideStanceSummary">
+        <![CDATA[
+SELECT COUNT(*) AS total_count,
+       COALESCE(SUM(action_value='ACTIONED'),0) AS actioned_count,
+       COALESCE(SUM(action_value='PLANNING'),0) AS planning_count,
+       COALESCE(SUM(action_value='WATCHING'),0) AS watching_count,
+       COALESCE(SUM(action_value='BLOCKED'),0) AS blocked_count,
+       COALESCE(SUM(action_value='NOT_RELEVANT'),0) AS not_relevant_count
+FROM zentide_user_action WHERE change_id=#{changeId} AND action_type='STANCE' AND status='ACTIVE'
+        ]]>
+    </select>
+
+    <select id="findMine" resultType="java.lang.String">
+        <![CDATA[
+SELECT action_value FROM zentide_user_action WHERE change_id=#{changeId} AND user_id=#{userId} AND action_type='STANCE' AND status='ACTIVE' LIMIT 1
+        ]]>
+    </select>
+
+</mapper>

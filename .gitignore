@@ -1,0 +1,38 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Java/Maven
+**/target/
+*.class
+
+# Node/Vite
+**/node_modules/
+**/dist/
+**/coverage/
+**/playwright-report/
+**/test-results/
+npm-debug.log*
+
+# Runtime data and logs
+data/logs/
+data/file/
+*.log
+**/log.path_IS_UNDEFINED/
+**/chroma_db/
+**/*.sqlite3
+
+# Python
+.venv*/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# IDE/OS files
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+~$*.docx

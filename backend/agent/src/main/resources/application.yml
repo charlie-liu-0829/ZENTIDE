@@ -1,0 +1,43 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: zentide-agent
+  main:
+    web-application-type: reactive
+  datasource:
+    url: ${ZENTIDE_DB_URL:jdbc:mysql://127.0.0.1:3306/zentide?allowMultiQueries=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=GMT%2B8&characterEncoding=UTF-8}
+    username: ${ZENTIDE_DB_USERNAME:root}
+    password: ${ZENTIDE_DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-init-sql: "SET time_zone = '+08:00'"
+  flyway:
+    enabled: ${ZENTIDE_FLYWAY_ENABLED:false}
+    baseline-on-migrate: true
+    baseline-version: ${ZENTIDE_FLYWAY_BASELINE_VERSION:35}
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+  ai:
+    mcp:
+      server:
+        protocol: STREAMABLE
+        name: zentide-agent
+        version: 1.0.0
+        streamable-http:
+          mcp-endpoint: /mcp
+          keep-alive-interval: 60s
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+
+project:
+  folder: ./data
+
+zentide:
+  knowledge:
+    snapshot-dir: ${ZENTIDE_KNOWLEDGE_SNAPSHOT_DIR:./data/knowledge-snapshots}

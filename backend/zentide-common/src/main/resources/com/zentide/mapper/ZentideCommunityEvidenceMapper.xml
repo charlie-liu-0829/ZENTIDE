@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zentide.mapper.ZentideCommunityEvidenceMapper">
+
+    <select id="countPublishedChange" resultType="int">
+        <![CDATA[
+SELECT COUNT(*) FROM zentide_change WHERE change_id=#{changeId} AND status='PUBLISHED' AND verification_status='VERIFIED'
+        ]]>
+    </select>
+
+    <insert id="insertSubmission" useGeneratedKeys="true" keyProperty="submissionId">
+        <![CDATA[
+INSERT INTO zentide_evidence_submission(change_id,author_id,source_url,excerpt,note,status) VALUES(#{changeId},#{authorId},#{sourceUrl},#{excerpt},#{note},'CANDIDATE')
+        ]]>
+    </insert>
+
+    <select id="listCandidates" resultType="com.zentide.entity.po.ZentideEvidenceSubmission">
+        <![CDATA[
+SELECT es.*, c.title AS change_title FROM zentide_evidence_submission es JOIN zentide_change c ON c.change_id=es.change_id WHERE es.status='CANDIDATE' ORDER BY es.created_at ASC LIMIT #{limit}
+        ]]>
+    </select>
+
+    <select id="findCandidate" resultType="com.zentide.entity.po.ZentideEvidenceSubmission">
+        <![CDATA[
+SELECT * FROM zentide_evidence_submission WHERE submission_id=#{submissionId} AND status='CANDIDATE' LIMIT 1
+        ]]>
+    </select>
+
+    <select id="findActiveSourceMaterial" resultType="com.zentide.entity.po.ZentideEvidence">
+        <![CDATA[
+SELECT dv.document_version_id, d.source_id, s.source_name, s.canonical_url AS source_url, s.trust_tier FROM zentide_document_version dv JOIN zentide_document d ON d.document_id=dv.document_id JOIN zentide_source s ON s.source_id=d.source_id WHERE dv.document_version_id=#{documentVersionId} AND s.status='ACTIVE' LIMIT 1
+        ]]>
+    </select>
+
+    <select id="countExcerptInDocumentVersion" resultType="int">
+        <![CDATA[
+SELECT COUNT(*) FROM zentide_document_version WHERE document_version_id=#{documentVersionId} AND LOCATE(#{excerpt},normalized_content)>0
+        ]]>
+    </select>
+
+    <insert id="insertEvidence" useGeneratedKeys="true" keyProperty="evidenceId">
+        <![CDATA[
+INSERT INTO zentide_evidence(change_id,source_id,document_version_id,source_name,source_url,locator,excerpt,trust_tier,excerpt_hash) VALUES(#{changeId},#{sourceId},#{documentVersionId},#{sourceName},#{sourceUrl},#{locator},#{excerpt},#{trustTier},#{excerptHash})
+        ]]>
+    </insert>
+
+    <update id="approve">
+        <![CDATA[
+UPDATE zentide_evidence_submission SET status='APPROVED',reviewed_by=#{actorId},review_note=#{reviewNote},accepted_evidence_id=#{evidenceId},reviewed_at=CURRENT_TIMESTAMP(3) WHERE submission_id=#{submissionId} AND status='CANDIDATE'
+        ]]>
+    </update>
+
+    <update id="reject">
+        <![CDATA[
+UPDATE zentide_evidence_submission SET status='REJECTED',reviewed_by=#{actorId},review_note=#{reviewNote},reviewed_at=CURRENT_TIMESTAMP(3) WHERE submission_id=#{submissionId} AND status='CANDIDATE'
+        ]]>
+    </update>
+
+    <insert id="insertAudit">
+        <![CDATA[
+INSERT INTO zentide_fact_audit(actor_type,actor_id,action,target_type,target_id,detail_json) VALUES('ADMIN',#{actorId},#{action},'EVIDENCE_SUBMISSION',#{submissionId},JSON_OBJECT('changeId',#{changeId},'documentVersionId',#{documentVersionId}))
+        ]]>
+    </insert>
+
+</mapper>

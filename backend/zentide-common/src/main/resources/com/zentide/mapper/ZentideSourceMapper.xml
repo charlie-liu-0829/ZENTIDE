@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zentide.mapper.ZentideSourceMapper">
+
+    <select id="listSources" resultType="com.zentide.entity.po.ZentideSource">
+        <![CDATA[
+SELECT * FROM zentide_source ORDER BY source_id DESC
+        ]]>
+    </select>
+
+    <select id="findSource" resultType="com.zentide.entity.po.ZentideSource">
+        <![CDATA[
+SELECT * FROM zentide_source WHERE source_id=#{sourceId} LIMIT 1
+        ]]>
+    </select>
+
+    <select id="findSourceByUrlHash" resultType="com.zentide.entity.po.ZentideSource">
+        <![CDATA[
+SELECT * FROM zentide_source WHERE canonical_url_hash=#{urlHash} LIMIT 1
+        ]]>
+    </select>
+
+    <insert id="insertSource" useGeneratedKeys="true" keyProperty="sourceId">
+        <![CDATA[
+INSERT INTO zentide_source(source_name,source_type,canonical_url,canonical_url_hash,trust_tier,adapter_key,status) VALUES(#{sourceName},#{sourceType},#{canonicalUrl},#{canonicalUrlHash},#{trustTier},#{adapterKey},'ACTIVE')
+        ]]>
+    </insert>
+
+    <insert id="insertAttempt" useGeneratedKeys="true" keyProperty="attemptId">
+        <![CDATA[
+INSERT INTO zentide_fetch_attempt(source_id,request_url,status,started_at) VALUES(#{sourceId},#{requestUrl},'RUNNING',#{startedAt})
+        ]]>
+    </insert>
+
+    <update id="finishAttempt">
+        <![CDATA[
+UPDATE zentide_fetch_attempt SET status=#{status},http_status=#{httpStatus},content_type=#{contentType},response_hash=#{responseHash},error_code=#{errorCode},error_message=#{errorMessage},finished_at=#{finishedAt} WHERE attempt_id=#{attemptId}
+        ]]>
+    </update>
+
+    <insert id="insertSnapshot" useGeneratedKeys="true" keyProperty="rawSnapshotId">
+        <![CDATA[
+INSERT INTO zentide_raw_snapshot(source_id,attempt_id,captured_at,content_type,content_hash,body) VALUES(#{sourceId},#{attemptId},#{capturedAt},#{contentType},#{contentHash},#{body}) ON DUPLICATE KEY UPDATE raw_snapshot_id=LAST_INSERT_ID(raw_snapshot_id)
+        ]]>
+    </insert>
+
+    <select id="findDocument" resultType="com.zentide.entity.po.ZentideDocument">
+        <![CDATA[
+SELECT * FROM zentide_document WHERE source_id=#{sourceId} AND canonical_key=#{canonicalKey} LIMIT 1
+        ]]>
+    </select>
+
+    <insert id="insertDocument" useGeneratedKeys="true" keyProperty="documentId">
+        <![CDATA[
+INSERT INTO zentide_document(source_id,canonical_key,current_version_no,status) VALUES(#{sourceId},#{canonicalKey},0,'ACTIVE')
+        ]]>
+    </insert>
+
+    <select id="findVersionByHash" resultType="com.zentide.entity.po.ZentideDocumentVersion">
+        <![CDATA[
+SELECT * FROM zentide_document_version WHERE document_id=#{documentId} AND content_hash=#{contentHash} LIMIT 1
+        ]]>
+    </select>
+
+    <insert id="insertDocumentVersion" useGeneratedKeys="true" keyProperty="documentVersionId">
+        <![CDATA[
+INSERT INTO zentide_document_version(document_id,version_no,raw_snapshot_id,content_hash,title,normalized_content,published_at) VALUES(#{documentId},#{versionNo},#{rawSnapshotId},#{contentHash},#{title},#{normalizedContent},#{publishedAt})
+        ]]>
+    </insert>
+
+    <update id="updateCurrentVersion">
+        <![CDATA[
+UPDATE zentide_document SET current_version_no=#{versionNo} WHERE document_id=#{documentId}
+        ]]>
+    </update>
+
+</mapper>

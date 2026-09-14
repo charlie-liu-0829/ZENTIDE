@@ -1,0 +1,6 @@
+**/node_modules
+**/dist
+**/target
+**/package-lock.json
+**/src/assets/icon/**
+**/src/views/community/community-discuit-modern.scss

@@ -1,0 +1,955 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zentide.mapper.ZentideInterestMapper">
+
+    <select id="listHubDirections" resultType="com.zentide.entity.po.ZentideHubDirection">
+        SELECT direction_id,code,display_name,description,status,sort_order,created_by,created_at,updated_at
+        FROM zentide_hub_direction
+        <if test="!includeDisabled">WHERE status='ACTIVE'</if>
+        ORDER BY sort_order ASC,direction_id ASC
+    </select>
+
+    <select id="findActiveHubDirection" resultType="com.zentide.entity.po.ZentideHubDirection">
+        SELECT direction_id,code,display_name,description,status,sort_order,created_by,created_at,updated_at
+        FROM zentide_hub_direction
+        WHERE code=#{code} AND status='ACTIVE'
+        LIMIT 1
+    </select>
+
+    <insert id="insertHubDirection" useGeneratedKeys="true" keyProperty="directionId">
+        INSERT INTO zentide_hub_direction(code,display_name,description,status,sort_order,created_by)
+        VALUES(#{code},#{displayName},#{description},#{status},#{sortOrder},#{createdBy})
+    </insert>
+
+    <update id="updateHubDirection">
+        UPDATE zentide_hub_direction
+        SET display_name=#{displayName},description=#{description},status=#{status},sort_order=#{sortOrder},updated_at=CURRENT_TIMESTAMP(3)
+        WHERE direction_id=#{directionId}
+    </update>
+
+    <delete id="deleteHubDirection">
+        DELETE FROM zentide_hub_direction WHERE direction_id=#{directionId}
+    </delete>
+
+    <sql id="hubViewerColumns">
+        h.*,
+        CASE WHEN hm.membership_status='ACTIVE' THEN 1 ELSE 0 END AS joined,
+        CASE WHEN h.owner_id=#{userId} THEN 1 ELSE 0 END AS owned,
+        hm.membership_status,
+        hm.role AS member_role,
+        hm.permissions_json AS member_permissions,
+        hc.category_id AS personal_category_id,
+        hc.name AS personal_category_name
+    </sql>
+
+    <sql id="hubViewerJoins">
+        LEFT JOIN zentide_hub_member hm ON hm.hub_id=h.hub_id AND hm.user_id=#{userId}
+        LEFT JOIN zentide_hub_category hc ON hc.category_id=hm.category_id AND hc.user_id=#{userId}
+    </sql>
+
+    <select id="listHubs" resultType="com.zentide.entity.po.ZentideInterestHub">
+        SELECT <include refid="hubViewerColumns"/>
+        FROM zentide_hub h
+        <include refid="hubViewerJoins"/>
+        WHERE h.status='ACTIVE' AND h.visibility='PUBLIC'
+          AND (#{userId} IS NULL OR hm.membership_status='ACTIVE' OR h.owner_id=#{userId})
+        ORDER BY CASE WHEN h.owner_id=#{userId} THEN 0 ELSE 1 END,
+                 COALESCE(hc.sort_order,999999),h.member_count DESC,h.post_count DESC,h.hub_id DESC
+    </select>
+
+    <select id="adminListHubs" resultType="com.zentide.entity.po.ZentideInterestHub">
+        SELECT h.*,u.nick_name AS owner_name
+        FROM zentide_hub h
+        LEFT JOIN user_info u ON u.user_id=h.owner_id
+        WHERE (#{status} IS NULL OR h.status=#{status})
+          AND (#{query} IS NULL OR h.name LIKE CONCAT('%',#{query},'%') OR h.slug LIKE CONCAT('%',#{query},'%'))
+        ORDER BY h.created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <update id="adminUpdateHubStatus">
+        UPDATE zentide_hub SET status=#{status},updated_at=CURRENT_TIMESTAMP(3) WHERE hub_id=#{hubId}
+    </update>
+
+    <select id="discoverHubs" resultType="com.zentide.entity.po.ZentideInterestHub">
+        SELECT <include refid="hubViewerColumns"/>
+        FROM zentide_hub h
+        <include refid="hubViewerJoins"/>
+        WHERE h.status='ACTIVE' AND h.visibility='PUBLIC'
+          AND (#{query} IS NULL OR h.name LIKE CONCAT('%',#{query},'%') OR h.description LIKE CONCAT('%',#{query},'%'))
+          AND (#{category} IS NULL OR h.category=#{category} OR (#{category}='TECHNOLOGY' AND h.category='AI'))
+        ORDER BY h.member_count DESC,h.post_count DESC,h.created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="searchPosts" resultType="map">
+        SELECT p.post_id AS id, p.title, LEFT(p.body, 240) AS summary,
+               p.hub_id, h.name AS hub_name, p.created_at
+        FROM zentide_interest_post p JOIN zentide_hub h ON h.hub_id=p.hub_id
+        WHERE p.status='PUBLISHED' AND h.status='ACTIVE'
+          AND (p.title LIKE CONCAT('%',#{query},'%') OR p.body LIKE CONCAT('%',#{query},'%'))
+        ORDER BY p.created_at DESC LIMIT #{limit}
+    </select>
+
+    <select id="searchHubs" resultType="map">
+        SELECT h.hub_id AS id, h.name AS title, h.description AS summary,
+               h.category, h.member_count, h.post_count
+        FROM zentide_hub h
+        WHERE h.status='ACTIVE' AND h.visibility='PUBLIC'
+          AND (h.name LIKE CONCAT('%',#{query},'%') OR h.description LIKE CONCAT('%',#{query},'%'))
+        ORDER BY h.member_count DESC, h.post_count DESC, h.created_at DESC LIMIT #{limit}
+    </select>
+
+    <select id="listEntities" resultType="com.zentide.entity.po.ZentideInterestEntity">
+        SELECT e.*,
+          (SELECT COUNT(*) FROM zentide_user_action f WHERE f.interest_entity_id=e.entity_id AND f.action_type='FOLLOW' AND f.status='ACTIVE') AS follower_count,
+          (SELECT COUNT(*) FROM zentide_interest_post p WHERE p.entity_id=e.entity_id AND p.status='PUBLISHED') AS post_count,
+          (SELECT COUNT(*) FROM zentide_interest_event x WHERE x.entity_id=e.entity_id AND x.status='UPCOMING') AS event_count,
+          CASE WHEN ef.user_action_id IS NULL THEN 0 ELSE 1 END AS followed,
+          ea.action_value AS my_action
+        FROM zentide_interest_entity e
+        LEFT JOIN zentide_user_action ef ON ef.interest_entity_id=e.entity_id AND ef.user_id=#{userId} AND ef.action_type='FOLLOW' AND ef.status='ACTIVE'
+        LEFT JOIN zentide_user_action ea ON ea.interest_entity_id=e.entity_id AND ea.user_id=#{userId} AND ea.action_type='ACTION' AND ea.status='ACTIVE'
+        WHERE e.status='ACTIVE' AND (#{hubId} IS NULL OR e.hub_id=#{hubId})
+        ORDER BY event_count DESC,follower_count DESC,e.entity_id DESC
+        LIMIT #{limit}
+    </select>
+
+    <sql id="postFeedColumns">
+        p.*,h.name AS hub_name,e.title AS event_title,c.title AS change_title,c.summary AS change_summary,
+        COALESCE(pt.display_name,p.post_type) AS post_type_label,
+        COALESCE(u.nick_name,'社区成员') AS author_label,
+        CASE WHEN pr.action_value='LIKE' THEN 1 ELSE 0 END AS liked,
+        CASE WHEN pb.user_action_id IS NULL THEN 0 ELSE 1 END AS bookmarked,
+        pa.action_value AS my_action
+    </sql>
+
+    <sql id="postFeedJoins">
+        JOIN zentide_hub h ON h.hub_id=p.hub_id
+        LEFT JOIN zentide_post_type pt ON pt.type_code=p.post_type
+        LEFT JOIN zentide_interest_event e ON e.event_id=p.event_id
+        LEFT JOIN zentide_change c ON c.change_id=p.change_id
+        LEFT JOIN user_info u ON u.user_id=p.author_id
+        LEFT JOIN zentide_user_action pr ON pr.post_id=p.post_id AND pr.user_id=#{userId} AND pr.action_type='REACTION' AND pr.status='ACTIVE'
+        LEFT JOIN zentide_user_action pb ON pb.post_id=p.post_id AND pb.user_id=#{userId} AND pb.action_type='BOOKMARK' AND pb.status='ACTIVE'
+        LEFT JOIN zentide_user_action pa ON pa.post_id=p.post_id AND pa.user_id=#{userId} AND pa.action_type='ACTION' AND pa.status='ACTIVE'
+    </sql>
+
+    <select id="listPosts" resultType="com.zentide.entity.po.ZentideInterestPost">
+        SELECT <include refid="postFeedColumns"/>
+        FROM zentide_interest_post p
+        <include refid="postFeedJoins"/>
+        WHERE p.status='PUBLISHED' AND h.status='ACTIVE'
+          AND (#{hubId} IS NULL OR p.hub_id=#{hubId})
+          AND (#{postType} IS NULL OR p.post_type=#{postType})
+          AND (#{topicId} IS NULL OR EXISTS (
+            SELECT 1 FROM zentide_topic_link ipt WHERE ipt.post_id=p.post_id AND ipt.topic_id=#{topicId}
+          ))
+          AND (#{changeId} IS NULL OR p.change_id=#{changeId})
+        ORDER BY p.created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="adminListPosts" resultType="com.zentide.entity.po.ZentideInterestPost">
+        SELECT p.*,h.name AS hub_name,u.nick_name AS author_label,
+          COALESCE(pt.display_name,p.post_type) AS post_type_label
+        FROM zentide_interest_post p
+        JOIN zentide_hub h ON h.hub_id=p.hub_id
+        LEFT JOIN user_info u ON u.user_id=p.author_id
+        LEFT JOIN zentide_post_type pt ON pt.type_code=p.post_type
+        WHERE (#{status} IS NULL OR p.status=#{status})
+          AND (#{hubId} IS NULL OR p.hub_id=#{hubId})
+          AND (#{query} IS NULL OR p.title LIKE CONCAT('%',#{query},'%') OR p.body LIKE CONCAT('%',#{query},'%'))
+        ORDER BY p.created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <update id="adminUpdatePostStatus">
+        UPDATE zentide_interest_post SET status=#{status},updated_at=CURRENT_TIMESTAMP(3) WHERE post_id=#{postId}
+    </update>
+
+    <select id="adminFindPostAuthorId" resultType="java.lang.String">
+        SELECT author_id FROM zentide_interest_post WHERE post_id=#{postId} LIMIT 1
+    </select>
+
+    <select id="adminFindPostHubId" resultType="java.lang.Long">
+        SELECT hub_id FROM zentide_interest_post WHERE post_id=#{postId} LIMIT 1
+    </select>
+
+    <select id="listPostIdsForSnapshotByHub" resultType="java.lang.Long">
+        SELECT post_id FROM zentide_interest_post WHERE hub_id=#{hubId}
+    </select>
+
+    <select id="listPublishedPostIdsForSnapshot" resultType="java.lang.Long">
+        SELECT p.post_id
+        FROM zentide_interest_post p
+        JOIN zentide_hub h ON h.hub_id=p.hub_id
+        WHERE p.status='PUBLISHED' AND h.status='ACTIVE'
+    </select>
+
+    <select id="adminListComments" resultType="com.zentide.entity.po.ZentideInterestComment">
+        SELECT c.*,p.title AS post_title,h.name AS hub_name,
+          COALESCE(u.nick_name,'社区成员') AS author_label,u.avatar AS author_avatar
+        FROM zentide_interest_comment c
+        JOIN zentide_interest_post p ON p.post_id=c.post_id
+        JOIN zentide_hub h ON h.hub_id=p.hub_id
+        LEFT JOIN user_info u ON u.user_id=c.author_id
+        WHERE (#{status} IS NULL OR c.status=#{status})
+          AND (#{hubId} IS NULL OR p.hub_id=#{hubId})
+          AND (#{query} IS NULL OR c.body LIKE CONCAT('%',#{query},'%') OR p.title LIKE CONCAT('%',#{query},'%'))
+        ORDER BY c.created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <update id="adminUpdateCommentStatus">
+        UPDATE zentide_interest_comment SET status=#{status},updated_at=CURRENT_TIMESTAMP(3) WHERE comment_id=#{commentId}
+    </update>
+
+    <select id="adminFindCommentPostId" resultType="java.lang.Long">
+        SELECT post_id FROM zentide_interest_comment WHERE comment_id=#{commentId} LIMIT 1
+    </select>
+
+    <select id="adminListTopics" resultType="com.zentide.entity.po.ZentideInterestTopic">
+        SELECT t.topic_id,t.canonical_name,t.topic_type,t.status,
+          (SELECT COUNT(*) FROM zentide_topic_link l WHERE l.topic_id=t.topic_id AND l.post_id IS NOT NULL) AS post_count,
+          (SELECT COUNT(*) FROM zentide_topic_link l WHERE l.topic_id=t.topic_id AND l.hub_id IS NOT NULL) AS hub_count
+        FROM zentide_topic t
+        WHERE (#{status} IS NULL OR t.status=#{status})
+          AND (#{query} IS NULL OR t.canonical_name LIKE CONCAT('%',#{query},'%'))
+        ORDER BY t.updated_at DESC,t.topic_id DESC
+        LIMIT #{limit}
+    </select>
+
+    <update id="adminUpdateTopicStatus">
+        UPDATE zentide_topic SET status=#{status},updated_at=CURRENT_TIMESTAMP(3) WHERE topic_id=#{topicId}
+    </update>
+
+    <select id="countAdminHubs" resultType="int">
+        SELECT COUNT(*) FROM zentide_hub WHERE (#{status} IS NULL OR status=#{status})
+    </select>
+
+    <select id="countAdminPosts" resultType="int">
+        SELECT COUNT(*) FROM zentide_interest_post WHERE (#{status} IS NULL OR status=#{status})
+    </select>
+
+    <select id="countAdminComments" resultType="int">
+        SELECT COUNT(*) FROM zentide_interest_comment WHERE (#{status} IS NULL OR status=#{status})
+    </select>
+
+    <select id="countAdminPendingMembers" resultType="int">
+        SELECT COUNT(*) FROM zentide_hub_member WHERE membership_status='PENDING'
+    </select>
+
+    <select id="findPost" resultType="com.zentide.entity.po.ZentideInterestPost">
+        SELECT <include refid="postFeedColumns"/>
+        FROM zentide_interest_post p
+        <include refid="postFeedJoins"/>
+        WHERE p.post_id=#{postId} AND p.status='PUBLISHED'
+        LIMIT 1
+    </select>
+
+    <update id="incrementPostView">
+        UPDATE zentide_interest_post
+        SET view_count=view_count+1
+        WHERE post_id=#{postId} AND status='PUBLISHED'
+    </update>
+
+    <select id="hasViewCountColumn" resultType="boolean">
+        SELECT COUNT(*) &gt; 0
+        FROM information_schema.columns
+        WHERE table_schema=DATABASE()
+          AND table_name='zentide_interest_post'
+          AND column_name='view_count'
+    </select>
+
+    <select id="listEvents" resultType="com.zentide.entity.po.ZentideInterestEvent">
+        SELECT e.*,h.name AS hub_name,ea.action_value AS attendance_status,
+          (SELECT COUNT(*) FROM zentide_user_action x WHERE x.event_id=e.event_id AND x.action_type='ATTENDANCE' AND x.status='ACTIVE') AS attendee_count
+        FROM zentide_interest_event e
+        JOIN zentide_hub h ON h.hub_id=e.hub_id
+        LEFT JOIN zentide_user_action ea ON ea.event_id=e.event_id AND ea.user_id=#{userId} AND ea.action_type='ATTENDANCE' AND ea.status='ACTIVE'
+        WHERE e.status='UPCOMING' AND (#{hubId} IS NULL OR e.hub_id=#{hubId})
+        ORDER BY e.starts_at ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="listOwnedEvents" resultType="com.zentide.entity.po.ZentideInterestEvent">
+        SELECT e.*,h.name AS hub_name
+        FROM zentide_interest_event e
+        JOIN zentide_hub h ON h.hub_id=e.hub_id
+        WHERE e.hub_id=#{hubId} AND e.status&lt;&gt;'DELETED'
+        ORDER BY COALESCE(e.starts_at,e.created_at) ASC,e.event_id DESC
+    </select>
+
+    <insert id="insertInterestEvent" useGeneratedKeys="true" keyProperty="eventId">
+        INSERT INTO zentide_interest_event(hub_id,entity_id,title,description,starts_at,ends_at,venue,source_url,status)
+        VALUES(#{hubId},#{entityId},#{title},#{description},#{startsAt},#{endsAt},#{venue},#{sourceUrl},'UPCOMING')
+    </insert>
+
+    <update id="updateOwnedInterestEvent">
+        UPDATE zentide_interest_event e
+        JOIN zentide_hub h ON h.hub_id=e.hub_id
+        SET e.title=#{event.title},e.description=#{event.description},e.starts_at=#{event.startsAt},e.ends_at=#{event.endsAt},e.venue=#{event.venue},e.source_url=#{event.sourceUrl},e.status=#{event.status},e.updated_at=CURRENT_TIMESTAMP(3)
+        WHERE e.event_id=#{event.eventId} AND e.status&lt;&gt;'DELETED'
+    </update>
+
+    <update id="cancelOwnedInterestEvent">
+        UPDATE zentide_interest_event e
+        JOIN zentide_hub h ON h.hub_id=e.hub_id
+        SET e.status='CANCELLED',e.updated_at=CURRENT_TIMESTAMP(3)
+        WHERE e.event_id=#{eventId} AND e.status&lt;&gt;'DELETED'
+    </update>
+
+    <select id="eventParticipationStats" resultType="com.zentide.entity.po.ZentideInterestEventStats">
+        SELECT #{eventId} AS event_id,
+          COALESCE(SUM(action_value='WANT' AND status='ACTIVE'),0) AS want_count,
+          COALESCE(SUM(action_value='ATTENDING' AND status='ACTIVE'),0) AS attending_count,
+          COALESCE(SUM(action_value='ATTENDED' AND status='ACTIVE'),0) AS attended_count,
+          COALESCE(SUM(status='ACTIVE'),0) AS total_participants
+        FROM zentide_user_action
+        WHERE event_id=#{eventId} AND action_type='ATTENDANCE'
+    </select>
+
+    <select id="listTodayHighlights" resultType="com.zentide.entity.po.ZentideCommunityHighlight">
+        SELECT * FROM (
+          SELECT 'POST' AS kind,p.post_id,NULL AS comment_id,p.hub_id,h.name AS hub_name,p.title,p.body,p.author_id,
+            COALESCE(u.nick_name,'社区成员') AS author_label,p.like_count,p.comment_count,p.bookmark_count,p.view_count,p.created_at
+          FROM zentide_interest_post p
+          JOIN zentide_hub h ON h.hub_id=p.hub_id
+          LEFT JOIN user_info u ON u.user_id=p.author_id
+          WHERE p.status='PUBLISHED' AND p.created_at &gt;= CURRENT_DATE()
+            AND (#{userId} IS NULL OR EXISTS (SELECT 1 FROM zentide_hub_member hm WHERE hm.hub_id=p.hub_id AND hm.user_id=#{userId} AND hm.membership_status='ACTIVE') OR h.owner_id=#{userId})
+          UNION ALL
+          SELECT 'COMMENT' AS kind,c.post_id,c.comment_id,p.hub_id,h.name AS hub_name,p.title,c.body,c.author_id,
+            COALESCE(u.nick_name,'社区成员') AS author_label,c.like_count,p.comment_count,p.bookmark_count,p.view_count,c.created_at
+          FROM zentide_interest_comment c
+          JOIN zentide_interest_post p ON p.post_id=c.post_id AND p.status='PUBLISHED'
+          JOIN zentide_hub h ON h.hub_id=p.hub_id
+          LEFT JOIN user_info u ON u.user_id=c.author_id
+          WHERE c.status='PUBLISHED' AND c.created_at &gt;= CURRENT_DATE()
+            AND (#{userId} IS NULL OR EXISTS (SELECT 1 FROM zentide_hub_member hm WHERE hm.hub_id=p.hub_id AND hm.user_id=#{userId} AND hm.membership_status='ACTIVE') OR h.owner_id=#{userId})
+        ) highlights
+        WHERE
+        <choose>
+          <when test="metric == 'COMMENTS'">comment_count</when>
+          <when test="metric == 'VIEWS'">view_count</when>
+          <otherwise>bookmark_count</otherwise>
+        </choose>
+        &gt;= #{minCount}
+        ORDER BY
+        <choose>
+          <when test="metric == 'COMMENTS'">comment_count</when>
+          <when test="metric == 'VIEWS'">view_count</when>
+          <otherwise>bookmark_count</otherwise>
+        </choose>
+        DESC,like_count DESC,created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- Compatibility query for installations that have not run V43 yet. -->
+    <select id="listTodayHighlightsLegacy" resultType="com.zentide.entity.po.ZentideCommunityHighlight">
+        SELECT * FROM (
+          SELECT 'POST' AS kind,p.post_id,NULL AS comment_id,p.hub_id,h.name AS hub_name,p.title,p.body,p.author_id,
+            COALESCE(u.nick_name,'社区成员') AS author_label,p.like_count,p.comment_count,p.bookmark_count,0 AS view_count,p.created_at
+          FROM zentide_interest_post p
+          JOIN zentide_hub h ON h.hub_id=p.hub_id
+          LEFT JOIN user_info u ON u.user_id=p.author_id
+          WHERE p.status='PUBLISHED' AND p.created_at &gt;= CURRENT_DATE()
+            AND (#{userId} IS NULL OR EXISTS (SELECT 1 FROM zentide_hub_member hm WHERE hm.hub_id=p.hub_id AND hm.user_id=#{userId} AND hm.membership_status='ACTIVE') OR h.owner_id=#{userId})
+          UNION ALL
+          SELECT 'COMMENT' AS kind,c.post_id,c.comment_id,p.hub_id,h.name AS hub_name,p.title,c.body,c.author_id,
+            COALESCE(u.nick_name,'社区成员') AS author_label,c.like_count,p.comment_count,p.bookmark_count,0 AS view_count,c.created_at
+          FROM zentide_interest_comment c
+          JOIN zentide_interest_post p ON p.post_id=c.post_id AND p.status='PUBLISHED'
+          JOIN zentide_hub h ON h.hub_id=p.hub_id
+          LEFT JOIN user_info u ON u.user_id=c.author_id
+          WHERE c.status='PUBLISHED' AND c.created_at &gt;= CURRENT_DATE()
+            AND (#{userId} IS NULL OR EXISTS (SELECT 1 FROM zentide_hub_member hm WHERE hm.hub_id=p.hub_id AND hm.user_id=#{userId} AND hm.membership_status='ACTIVE') OR h.owner_id=#{userId})
+        ) highlights
+        WHERE
+        <choose>
+          <when test="metric == 'COMMENTS'">comment_count</when>
+          <otherwise>bookmark_count</otherwise>
+        </choose>
+        &gt;= #{minCount}
+        ORDER BY
+        <choose>
+          <when test="metric == 'COMMENTS'">comment_count</when>
+          <otherwise>bookmark_count</otherwise>
+        </choose>
+        DESC,like_count DESC,created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findUserProfile" resultType="com.zentide.entity.po.ZentideCommunityUserProfile">
+        SELECT u.user_id,u.nick_name,u.avatar,u.join_time,u.handle,u.bio,u.cover_url,u.location,u.website_url,
+          (SELECT COUNT(*) FROM zentide_interest_post p WHERE p.author_id=u.user_id AND p.status='PUBLISHED') AS posts_count,
+          (SELECT COUNT(*) FROM zentide_user_action f WHERE f.target_user_id=u.user_id AND f.action_type='FOLLOW' AND f.status='ACTIVE') AS followers_count,
+          (SELECT COUNT(*) FROM zentide_user_action f WHERE f.user_id=u.user_id AND f.target_user_id IS NOT NULL AND f.action_type='FOLLOW' AND f.status='ACTIVE') AS following_count,
+          CASE WHEN #{viewerId} IS NOT NULL AND EXISTS (
+            SELECT 1 FROM zentide_user_action f WHERE f.user_id=#{viewerId} AND f.target_user_id=u.user_id AND f.action_type='FOLLOW' AND f.status='ACTIVE'
+          ) THEN 1 ELSE 0 END AS followed_by_me
+        FROM user_info u
+        WHERE u.user_id=#{userId} AND u.status=1
+        LIMIT 1
+    </select>
+
+    <select id="listUserPosts" resultType="com.zentide.entity.po.ZentideInterestPost">
+        SELECT p.*,h.name AS hub_name,e.title AS event_title,
+          COALESCE(pt.display_name,p.post_type) AS post_type_label,
+          COALESCE(u.nick_name,'社区成员') AS author_label
+        FROM zentide_interest_post p
+        JOIN zentide_hub h ON h.hub_id=p.hub_id
+        LEFT JOIN zentide_post_type pt ON pt.type_code=p.post_type
+        LEFT JOIN zentide_interest_event e ON e.event_id=p.event_id
+        LEFT JOIN user_info u ON u.user_id=p.author_id
+        WHERE p.author_id=#{userId} AND p.status='PUBLISHED'
+        ORDER BY p.created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="listUserComments" resultType="com.zentide.entity.po.ZentideInterestComment">
+        SELECT c.*,p.title AS post_title,h.name AS hub_name
+        FROM zentide_interest_comment c
+        JOIN zentide_interest_post p ON p.post_id=c.post_id AND p.status='PUBLISHED'
+        JOIN zentide_hub h ON h.hub_id=p.hub_id
+        WHERE c.author_id=#{userId} AND c.status='PUBLISHED'
+        ORDER BY c.created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="listBookmarkedPosts" resultType="com.zentide.entity.po.ZentideInterestPost">
+        SELECT p.*,h.name AS hub_name,e.title AS event_title,
+          COALESCE(pt.display_name,p.post_type) AS post_type_label,
+          COALESCE(u.nick_name,'社区成员') AS author_label,
+          1 AS bookmarked
+        FROM zentide_user_action a
+        JOIN zentide_interest_post p ON p.post_id=a.post_id AND p.status='PUBLISHED'
+        JOIN zentide_hub h ON h.hub_id=p.hub_id
+        LEFT JOIN zentide_post_type pt ON pt.type_code=p.post_type
+        LEFT JOIN zentide_interest_event e ON e.event_id=p.event_id
+        LEFT JOIN user_info u ON u.user_id=p.author_id
+        WHERE a.user_id=#{userId} AND a.action_type='BOOKMARK' AND a.status='ACTIVE'
+        ORDER BY a.updated_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="listPendingHubMembers" resultType="com.zentide.entity.po.ZentideHubMemberRequest">
+        SELECT hm.hub_id,hm.user_id,u.nick_name,u.avatar,hm.membership_status,hm.role,hm.permissions_json,hm.application_note,hm.created_at
+        FROM zentide_hub_member hm
+        JOIN user_info u ON u.user_id=hm.user_id
+        WHERE hm.hub_id=#{hubId} AND hm.membership_status='PENDING'
+        ORDER BY hm.created_at
+    </select>
+
+    <select id="listHubMembers" resultType="com.zentide.entity.po.ZentideHubMemberRequest">
+        SELECT hm.hub_id,hm.user_id,u.nick_name,u.avatar,hm.membership_status,hm.role,hm.permissions_json,hm.application_note,hm.created_at,hm.updated_at
+        FROM zentide_hub_member hm
+        JOIN user_info u ON u.user_id=hm.user_id
+        WHERE hm.hub_id=#{hubId} AND hm.membership_status='ACTIVE'
+        ORDER BY CASE hm.role WHEN 'OWNER' THEN 0 WHEN 'ADMIN' THEN 1 ELSE 2 END, hm.created_at
+    </select>
+
+    <select id="findHubMember" resultType="com.zentide.entity.po.ZentideHubMemberRequest">
+        SELECT hm.hub_id,hm.user_id,hm.membership_status,hm.role,hm.permissions_json
+        FROM zentide_hub_member hm
+        WHERE hm.hub_id=#{hubId} AND hm.user_id=#{userId}
+        LIMIT 1
+    </select>
+
+    <update id="updateHubMemberRole">
+        UPDATE zentide_hub_member
+        SET role=#{role}, permissions_json=CAST(#{permissionsJson} AS JSON), updated_at=CURRENT_TIMESTAMP(3)
+        WHERE hub_id=#{hubId} AND user_id=#{memberId} AND role&lt;&gt;'OWNER' AND membership_status='ACTIVE'
+    </update>
+
+    <delete id="removeHubMember">
+        DELETE FROM zentide_hub_member
+        WHERE hub_id=#{hubId} AND user_id=#{memberId}
+          AND role&lt;&gt;'OWNER' AND membership_status='ACTIVE'
+    </delete>
+
+    <select id="adminListPendingHubMembers" resultType="com.zentide.entity.po.ZentideHubMemberRequest">
+        SELECT hm.hub_id,hm.user_id,h.name AS hub_name,u.nick_name,u.avatar,hm.membership_status,hm.created_at
+        FROM zentide_hub_member hm
+        JOIN zentide_hub h ON h.hub_id=hm.hub_id
+        JOIN user_info u ON u.user_id=hm.user_id
+        WHERE hm.membership_status='PENDING'
+        ORDER BY hm.created_at ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findHub" resultType="com.zentide.entity.po.ZentideInterestHub">
+        <![CDATA[
+SELECT * FROM zentide_hub WHERE hub_id=#{hubId} AND status='ACTIVE' LIMIT 1
+        ]]>
+    </select>
+
+    <select id="listHubTopics" resultType="com.zentide.entity.po.ZentideInterestTopic">
+        <![CDATA[
+SELECT t.topic_id,t.canonical_name,t.topic_type,ht.hub_id,ht.counter_value AS post_count,ht.featured FROM zentide_topic_link ht JOIN zentide_topic t ON t.topic_id=ht.topic_id WHERE ht.hub_id=#{hubId} AND t.status='ACTIVE' ORDER BY ht.featured DESC,ht.counter_value DESC,t.canonical_name ASC LIMIT #{limit}
+        ]]>
+    </select>
+
+    <select id="findHubTopic" resultType="java.lang.Long">
+        <![CDATA[
+SELECT hub_id FROM zentide_topic_link WHERE topic_id=#{topicId} AND hub_id=#{hubId} LIMIT 1
+        ]]>
+    </select>
+
+    <select id="findTopicIdByName" resultType="java.lang.Long">
+        <![CDATA[
+SELECT topic_id FROM zentide_topic WHERE canonical_name=#{name} AND status='ACTIVE' LIMIT 1
+        ]]>
+    </select>
+
+    <insert id="insertCommunityTopic" useGeneratedKeys="true" keyProperty="topicId">
+        <![CDATA[
+INSERT INTO zentide_topic(canonical_name,topic_type,aliases_json,status) VALUES(#{canonicalName},'INTEREST',JSON_ARRAY(),'ACTIVE')
+        ]]>
+    </insert>
+
+    <insert id="attachHubTopic">
+        <![CDATA[
+INSERT IGNORE INTO zentide_topic_link(hub_id,topic_id,featured,counter_value) VALUES(#{hubId},#{topicId},0,0)
+        ]]>
+    </insert>
+
+    <select id="listAvailablePostTypes" resultType="com.zentide.entity.po.ZentidePostType">
+        <![CDATA[
+SELECT pt.*,h.name AS hub_name FROM zentide_post_type pt LEFT JOIN zentide_hub h ON h.hub_id=pt.hub_id WHERE pt.status='ACTIVE' AND ((pt.system_fixed=1 AND pt.hub_id IS NULL) OR (#{hubId} IS NOT NULL AND pt.hub_id=#{hubId})) ORDER BY pt.system_fixed DESC,pt.sort_order,pt.post_type_id
+        ]]>
+    </select>
+
+    <select id="listHubCustomPostTypes" resultType="com.zentide.entity.po.ZentidePostType">
+        <![CDATA[
+SELECT pt.*,h.name AS hub_name FROM zentide_post_type pt LEFT JOIN zentide_hub h ON h.hub_id=pt.hub_id WHERE pt.hub_id=#{hubId} AND pt.system_fixed=0 AND pt.status<>'DELETED' ORDER BY pt.sort_order,pt.post_type_id
+        ]]>
+    </select>
+
+    <select id="listSystemPostTypes" resultType="com.zentide.entity.po.ZentidePostType">
+        <![CDATA[
+SELECT pt.* FROM zentide_post_type pt WHERE pt.system_fixed=1 AND pt.hub_id IS NULL AND pt.status<>'DELETED' ORDER BY pt.sort_order,pt.post_type_id
+        ]]>
+    </select>
+
+    <select id="countActivePostTypeForHub" resultType="int">
+        <![CDATA[
+SELECT COUNT(*) FROM zentide_post_type WHERE type_code=#{typeCode} AND status='ACTIVE' AND ((system_fixed=1 AND hub_id IS NULL) OR hub_id=#{hubId})
+        ]]>
+    </select>
+
+    <select id="countActivePostTypeCode" resultType="int">
+        <![CDATA[
+SELECT COUNT(*) FROM zentide_post_type WHERE type_code=#{typeCode} AND status='ACTIVE'
+        ]]>
+    </select>
+
+    <insert id="insertPostType" useGeneratedKeys="true" keyProperty="postTypeId">
+        <![CDATA[
+INSERT INTO zentide_post_type(hub_id,type_code,display_name,description,system_fixed,status,sort_order,created_by) VALUES(#{hubId},#{typeCode},#{displayName},#{description},#{systemFixed},#{status},#{sortOrder},#{createdBy})
+        ]]>
+    </insert>
+
+    <update id="deleteHubPostType">
+        <![CDATA[
+UPDATE zentide_post_type SET status='DELETED',updated_at=CURRENT_TIMESTAMP(3) WHERE post_type_id=#{postTypeId} AND hub_id=#{hubId} AND system_fixed=0 AND status<>'DELETED'
+        ]]>
+    </update>
+
+    <update id="updateHubPostType">
+        UPDATE zentide_post_type SET display_name=#{displayName},description=#{description},updated_at=CURRENT_TIMESTAMP(3)
+        WHERE post_type_id=#{postTypeId} AND hub_id=#{hubId} AND system_fixed=0 AND status='ACTIVE'
+    </update>
+
+    <update id="updateSystemPostType">
+        <![CDATA[
+UPDATE zentide_post_type SET display_name=#{displayName},description=#{description},status=#{status},sort_order=#{sortOrder},updated_at=CURRENT_TIMESTAMP(3) WHERE post_type_id=#{postTypeId} AND system_fixed=1 AND hub_id IS NULL AND status<>'DELETED'
+        ]]>
+    </update>
+
+    <update id="deleteSystemPostType">
+        <![CDATA[
+UPDATE zentide_post_type SET status='DELETED',updated_at=CURRENT_TIMESTAMP(3) WHERE post_type_id=#{postTypeId} AND system_fixed=1 AND hub_id IS NULL AND status<>'DELETED'
+        ]]>
+    </update>
+
+    <select id="listChangeContexts" resultType="com.zentide.entity.po.ZentideInterestChangeContext">
+        <![CDATA[
+SELECT h.hub_id,h.name AS hub_name,t.topic_id,t.canonical_name AS topic_name,c.change_id,c.title AS change_title,c.summary AS change_summary FROM zentide_topic_link tc JOIN zentide_topic_link ht ON ht.topic_id=tc.topic_id AND ht.hub_id IS NOT NULL JOIN zentide_hub h ON h.hub_id=ht.hub_id JOIN zentide_topic t ON t.topic_id=tc.topic_id JOIN zentide_change c ON c.change_id=tc.change_id WHERE tc.change_id=#{changeId} AND c.status='PUBLISHED' AND c.verification_status='VERIFIED' AND h.status='ACTIVE' ORDER BY ht.featured DESC,ht.counter_value DESC,h.hub_id LIMIT 20
+        ]]>
+    </select>
+
+    <select id="countVerifiedChangeInHubTopic" resultType="int">
+        <![CDATA[
+SELECT COUNT(*) FROM zentide_topic_link tc JOIN zentide_topic_link ht ON ht.topic_id=tc.topic_id AND ht.hub_id IS NOT NULL JOIN zentide_change c ON c.change_id=tc.change_id WHERE ht.hub_id=#{hubId} AND tc.topic_id=#{topicId} AND tc.change_id=#{changeId} AND c.status='PUBLISHED' AND c.verification_status='VERIFIED'
+        ]]>
+    </select>
+
+    <insert id="attachPostTopic">
+        <![CDATA[
+INSERT IGNORE INTO zentide_topic_link(post_id,topic_id) VALUES(#{postId},#{topicId})
+        ]]>
+    </insert>
+
+    <update id="refreshTopicPostCount">
+        <![CDATA[
+UPDATE zentide_topic_link
+SET counter_value=(
+  SELECT calculated.counter_value
+  FROM (
+    SELECT COUNT(*) AS counter_value
+    FROM zentide_topic_link pt
+    JOIN zentide_interest_post p ON p.post_id=pt.post_id
+    WHERE pt.topic_id=#{topicId}
+      AND pt.post_id IS NOT NULL
+      AND p.status='PUBLISHED'
+  ) calculated
+)
+WHERE hub_id=#{hubId} AND topic_id=#{topicId}
+        ]]>
+    </update>
+
+    <insert id="insertHub" useGeneratedKeys="true" keyProperty="hubId">
+        <![CDATA[
+INSERT INTO zentide_hub(slug,owner_id,name,description,category,cover_url,join_policy,join_question,join_answer,visibility) VALUES(#{slug},#{ownerId},#{name},#{description},#{category},#{coverUrl},#{joinPolicy},#{joinQuestion},#{joinAnswer},'PUBLIC')
+        ]]>
+    </insert>
+
+    <delete id="deleteOwnedHub">
+        <![CDATA[
+DELETE FROM zentide_hub WHERE hub_id=#{hubId} AND owner_id=#{ownerId} AND status='ACTIVE'
+        ]]>
+    </delete>
+
+    <select id="countActiveHubMember" resultType="int">
+        <![CDATA[
+SELECT COUNT(*) FROM zentide_hub_member WHERE hub_id=#{hubId} AND user_id=#{userId} AND membership_status='ACTIVE'
+        ]]>
+    </select>
+
+    <select id="countOwnedHub" resultType="int">
+        <![CDATA[
+SELECT COUNT(*) FROM zentide_hub WHERE hub_id=#{hubId} AND owner_id=#{userId} AND status='ACTIVE'
+        ]]>
+    </select>
+
+    <select id="findEntity" resultType="com.zentide.entity.po.ZentideInterestEntity">
+        <![CDATA[
+SELECT * FROM zentide_interest_entity WHERE entity_id=#{entityId} AND status='ACTIVE' LIMIT 1
+        ]]>
+    </select>
+
+    <insert id="followEntity">
+        <![CDATA[
+INSERT INTO zentide_user_action(user_id,interest_entity_id,action_type,action_value,status) VALUES(#{userId},#{entityId},'FOLLOW','HIGHLIGHTS','ACTIVE') ON DUPLICATE KEY UPDATE status='ACTIVE',updated_at=CURRENT_TIMESTAMP(3)
+        ]]>
+    </insert>
+
+    <delete id="unfollowEntity">
+        <![CDATA[
+DELETE FROM zentide_user_action WHERE interest_entity_id=#{entityId} AND user_id=#{userId} AND action_type='FOLLOW'
+        ]]>
+    </delete>
+
+    <insert id="actionEntity">
+        <![CDATA[
+INSERT INTO zentide_user_action(user_id,interest_entity_id,action_type,action_value,status) VALUES(#{userId},#{entityId},'ACTION',#{action},'ACTIVE') ON DUPLICATE KEY UPDATE action_value=VALUES(action_value),status='ACTIVE',updated_at=CURRENT_TIMESTAMP(3)
+        ]]>
+    </insert>
+
+    <delete id="clearEntityAction">
+        <![CDATA[
+DELETE FROM zentide_user_action WHERE interest_entity_id=#{entityId} AND user_id=#{userId} AND action_type='ACTION'
+        ]]>
+    </delete>
+
+    <select id="listPostTopicNames" resultType="java.lang.String">
+        <![CDATA[
+SELECT t.canonical_name FROM zentide_topic_link pt JOIN zentide_topic t ON t.topic_id=pt.topic_id WHERE pt.post_id=#{postId} ORDER BY t.canonical_name
+        ]]>
+    </select>
+
+    <select id="listPostTopicIds" resultType="java.lang.Long">
+        <![CDATA[
+SELECT topic_id FROM zentide_topic_link WHERE post_id=#{postId} ORDER BY topic_id
+        ]]>
+    </select>
+
+    <insert id="insertPost" useGeneratedKeys="true" keyProperty="postId">
+        <![CDATA[
+INSERT INTO zentide_interest_post(hub_id,author_id,entity_id,event_id,change_id,post_type,title,body,media_json,cover_url,status) VALUES(#{hubId},#{authorId},#{entityId},#{eventId},#{changeId},#{postType},#{title},#{body},CAST(#{mediaJson} AS JSON),#{coverUrl},COALESCE(#{status},'PUBLISHED'))
+        ]]>
+    </insert>
+
+    <update id="updateOwnedPost">
+        <![CDATA[
+UPDATE zentide_interest_post SET post_type=#{postType},title=#{title},body=#{body},event_id=#{eventId},media_json=CAST(#{mediaJson} AS JSON),cover_url=#{coverUrl},updated_at=CURRENT_TIMESTAMP(3) WHERE post_id=#{postId} AND author_id=#{authorId} AND status='PUBLISHED'
+        ]]>
+    </update>
+
+    <delete id="detachPostTopics">
+        <![CDATA[
+DELETE FROM zentide_topic_link WHERE post_id=#{postId}
+        ]]>
+    </delete>
+
+    <delete id="deleteOwnedPost">
+        <![CDATA[
+DELETE FROM zentide_interest_post WHERE post_id=#{postId} AND author_id=#{authorId} AND status='PUBLISHED'
+        ]]>
+    </delete>
+
+    <insert id="insertComment" useGeneratedKeys="true" keyProperty="commentId">
+        <![CDATA[
+INSERT INTO zentide_interest_comment(post_id,author_id,parent_comment_id,body) VALUES(#{postId},#{authorId},#{parentCommentId},#{body})
+        ]]>
+    </insert>
+
+    <select id="listComments" resultType="com.zentide.entity.po.ZentideInterestComment">
+        <![CDATA[
+SELECT c.*,COALESCE(u.nick_name,'社区成员') AS author_label,u.avatar AS author_avatar,CASE WHEN r.user_action_id IS NULL THEN 0 ELSE 1 END AS liked FROM zentide_interest_comment c LEFT JOIN user_info u ON u.user_id=c.author_id LEFT JOIN zentide_user_action r ON r.comment_id=c.comment_id AND r.user_id=#{userId} AND r.action_type='REACTION' AND r.action_value='LIKE' AND r.status='ACTIVE' WHERE c.post_id=#{postId} AND c.status='PUBLISHED' ORDER BY c.created_at ASC LIMIT #{limit}
+        ]]>
+    </select>
+
+    <select id="listCommentsForSnapshot" resultType="com.zentide.entity.po.ZentideInterestComment">
+        SELECT c.*,COALESCE(u.nick_name,'社区成员') AS author_label,u.avatar AS author_avatar
+        FROM zentide_interest_comment c
+        LEFT JOIN user_info u ON u.user_id=c.author_id
+        WHERE c.post_id=#{postId} AND c.status='PUBLISHED'
+        ORDER BY c.created_at ASC,c.comment_id ASC
+    </select>
+
+    <select id="findCommentPostId" resultType="java.lang.Long">
+        <![CDATA[
+SELECT post_id FROM zentide_interest_comment WHERE comment_id=#{commentId} AND status='PUBLISHED' LIMIT 1
+        ]]>
+    </select>
+
+    <update id="refreshCommentCount">
+        <![CDATA[
+UPDATE zentide_interest_post SET comment_count=(SELECT COUNT(*) FROM zentide_interest_comment WHERE post_id=#{postId} AND status='PUBLISHED') WHERE post_id=#{postId}
+        ]]>
+    </update>
+
+    <insert id="reactComment">
+        <![CDATA[
+INSERT INTO zentide_user_action(user_id,comment_id,action_type,action_value,status) VALUES(#{userId},#{commentId},'REACTION','LIKE','ACTIVE') ON DUPLICATE KEY UPDATE action_value='LIKE',status='ACTIVE',updated_at=CURRENT_TIMESTAMP(3)
+        ]]>
+    </insert>
+
+    <delete id="unreactComment">
+        <![CDATA[
+DELETE FROM zentide_user_action WHERE comment_id=#{commentId} AND user_id=#{userId} AND action_type='REACTION'
+        ]]>
+    </delete>
+
+    <update id="refreshCommentLikeCount">
+        <![CDATA[
+UPDATE zentide_interest_comment SET like_count=(SELECT COUNT(*) FROM zentide_user_action WHERE comment_id=#{commentId} AND action_type='REACTION' AND action_value='LIKE' AND status='ACTIVE') WHERE comment_id=#{commentId}
+        ]]>
+    </update>
+
+    <insert id="react">
+        <![CDATA[
+INSERT INTO zentide_user_action(user_id,post_id,action_type,action_value,status) VALUES(#{userId},#{postId},'REACTION',#{reaction},'ACTIVE') ON DUPLICATE KEY UPDATE action_value=VALUES(action_value),status='ACTIVE',updated_at=CURRENT_TIMESTAMP(3)
+        ]]>
+    </insert>
+
+    <delete id="unreact">
+        <![CDATA[
+DELETE FROM zentide_user_action WHERE post_id=#{postId} AND user_id=#{userId} AND action_type='REACTION'
+        ]]>
+    </delete>
+
+    <update id="refreshLikeCount">
+        <![CDATA[
+UPDATE zentide_interest_post SET like_count=(SELECT COUNT(*) FROM zentide_user_action WHERE post_id=#{postId} AND action_type='REACTION' AND action_value='LIKE' AND status='ACTIVE') WHERE post_id=#{postId}
+        ]]>
+    </update>
+
+    <update id="refreshPostCount">
+        <![CDATA[
+UPDATE zentide_hub SET post_count=(SELECT COUNT(*) FROM zentide_interest_post WHERE hub_id=#{hubId} AND status='PUBLISHED') WHERE hub_id=#{hubId}
+        ]]>
+    </update>
+
+    <insert id="action">
+        <![CDATA[
+INSERT INTO zentide_user_action(user_id,post_id,action_type,action_value,status) VALUES(#{userId},#{postId},'ACTION',#{action},'ACTIVE') ON DUPLICATE KEY UPDATE action_value=VALUES(action_value),status='ACTIVE',updated_at=CURRENT_TIMESTAMP(3)
+        ]]>
+    </insert>
+
+    <delete id="clearAction">
+        <![CDATA[
+DELETE FROM zentide_user_action WHERE post_id=#{postId} AND user_id=#{userId} AND action_type='ACTION'
+        ]]>
+    </delete>
+
+    <insert id="bookmark">
+        <![CDATA[
+INSERT INTO zentide_user_action(user_id,post_id,action_type,action_value,status) VALUES(#{userId},#{postId},'BOOKMARK','BOOKMARKED','ACTIVE') ON DUPLICATE KEY UPDATE status='ACTIVE',updated_at=CURRENT_TIMESTAMP(3)
+        ]]>
+    </insert>
+
+    <delete id="unbookmark">
+        <![CDATA[
+DELETE FROM zentide_user_action WHERE post_id=#{postId} AND user_id=#{userId} AND action_type='BOOKMARK'
+        ]]>
+    </delete>
+
+    <select id="countOtherNickname" resultType="int">
+        <![CDATA[
+SELECT COUNT(*) FROM user_info WHERE nick_name=#{nickName} AND user_id<>#{userId}
+        ]]>
+    </select>
+
+    <select id="countOtherHandle" resultType="int">
+        <![CDATA[
+SELECT COUNT(*) FROM user_info WHERE handle=#{handle} AND user_id<>#{userId}
+        ]]>
+    </select>
+
+    <update id="updateUserIdentity">
+        <![CDATA[
+UPDATE user_info SET nick_name=#{nickName},avatar=#{avatar} WHERE user_id=#{userId}
+        ]]>
+    </update>
+
+    <update id="upsertUserProfile">
+        <![CDATA[
+UPDATE user_info SET handle=#{handle},bio=#{bio},cover_url=#{coverUrl},location=#{location},website_url=#{websiteUrl} WHERE user_id=#{userId}
+        ]]>
+    </update>
+
+    <insert id="follow">
+        <![CDATA[
+INSERT INTO zentide_user_action(user_id,target_user_id,action_type,action_value,status) VALUES(#{followerId},#{followingId},'FOLLOW','FOLLOWING','ACTIVE') ON DUPLICATE KEY UPDATE status='ACTIVE',updated_at=CURRENT_TIMESTAMP(3)
+        ]]>
+    </insert>
+
+    <delete id="unfollow">
+        <![CDATA[
+DELETE FROM zentide_user_action WHERE user_id=#{followerId} AND target_user_id=#{followingId} AND action_type='FOLLOW'
+        ]]>
+    </delete>
+
+    <select id="isFollowing" resultType="java.lang.Integer">
+        <![CDATA[
+SELECT 1 FROM zentide_user_action WHERE user_id=#{followerId} AND target_user_id=#{followingId} AND action_type='FOLLOW' AND status='ACTIVE' LIMIT 1
+        ]]>
+    </select>
+
+    <select id="findAttendance" resultType="com.zentide.entity.po.ZentideInterestEvent">
+        <![CDATA[
+SELECT event_id,action_value AS attendance_status FROM zentide_user_action WHERE event_id=#{eventId} AND user_id=#{userId} AND action_type='ATTENDANCE' AND status='ACTIVE' LIMIT 1
+        ]]>
+    </select>
+
+    <insert id="setAttendance">
+        <![CDATA[
+INSERT INTO zentide_user_action(user_id,event_id,action_type,action_value,status) VALUES(#{userId},#{eventId},'ATTENDANCE',#{status},'ACTIVE') ON DUPLICATE KEY UPDATE action_value=VALUES(action_value),status='ACTIVE',updated_at=CURRENT_TIMESTAMP(3)
+        ]]>
+    </insert>
+
+    <delete id="clearAttendance">
+        <![CDATA[
+DELETE FROM zentide_user_action WHERE event_id=#{eventId} AND user_id=#{userId} AND action_type='ATTENDANCE'
+        ]]>
+    </delete>
+
+    <insert id="joinHubAsOwner">
+        <![CDATA[
+INSERT INTO zentide_hub_member(hub_id,user_id,role,membership_status) VALUES(#{hubId},#{userId},'OWNER','ACTIVE') ON DUPLICATE KEY UPDATE role='OWNER',membership_status='ACTIVE'
+        ]]>
+    </insert>
+
+    <insert id="requestHubMembership">
+        <![CDATA[
+INSERT INTO zentide_hub_member(hub_id,user_id,role,membership_status) VALUES(#{hubId},#{userId},'MEMBER',#{status}) ON DUPLICATE KEY UPDATE membership_status=VALUES(membership_status),updated_at=CURRENT_TIMESTAMP(3)
+        ]]>
+    </insert>
+
+    <insert id="requestHubMembershipWithNote">
+INSERT INTO zentide_hub_member(hub_id,user_id,role,membership_status,application_note) VALUES(#{hubId},#{userId},'MEMBER',#{status},#{applicationNote}) ON DUPLICATE KEY UPDATE membership_status=VALUES(membership_status),application_note=VALUES(application_note),updated_at=CURRENT_TIMESTAMP(3)
+    </insert>
+
+    <delete id="leaveHub">
+        <![CDATA[
+DELETE FROM zentide_hub_member WHERE hub_id=#{hubId} AND user_id=#{userId}
+        ]]>
+    </delete>
+
+    <update id="refreshMemberCount">
+        <![CDATA[
+UPDATE zentide_hub SET member_count=(SELECT COUNT(*) FROM zentide_hub_member WHERE hub_id=#{hubId} AND membership_status='ACTIVE') WHERE hub_id=#{hubId}
+        ]]>
+    </update>
+
+    <update id="updateMembershipStatus">
+        <![CDATA[
+UPDATE zentide_hub_member SET membership_status=#{status},updated_at=CURRENT_TIMESTAMP(3) WHERE hub_id=#{hubId} AND user_id=#{memberId} AND role<>'OWNER' AND membership_status='PENDING'
+        ]]>
+    </update>
+
+    <insert id="insertHubInvitation" useGeneratedKeys="true" keyProperty="invitationId">
+        <![CDATA[
+INSERT INTO zentide_hub_invitation(hub_id,created_by,invite_token,expires_at,status) VALUES(#{hubId},#{createdBy},#{inviteToken},#{expiresAt},'ACTIVE')
+        ]]>
+    </insert>
+
+    <select id="findValidInvitation" resultType="com.zentide.entity.po.ZentideHubInvitation">
+        <![CDATA[
+SELECT i.*,h.name AS hub_name FROM zentide_hub_invitation i JOIN zentide_hub h ON h.hub_id=i.hub_id WHERE i.invite_token=#{token} AND i.status='ACTIVE' AND h.status='ACTIVE' AND (i.expires_at IS NULL OR i.expires_at>CURRENT_TIMESTAMP(3)) AND (i.max_uses IS NULL OR i.use_count<i.max_uses) LIMIT 1
+        ]]>
+    </select>
+
+    <update id="consumeInvitation">
+        <![CDATA[
+UPDATE zentide_hub_invitation SET use_count=use_count+1 WHERE invitation_id=#{invitationId} AND status='ACTIVE' AND (expires_at IS NULL OR expires_at>CURRENT_TIMESTAMP(3)) AND (max_uses IS NULL OR use_count<max_uses)
+        ]]>
+    </update>
+
+    <select id="listHubCategories" resultType="com.zentide.entity.po.ZentideHubCategory">
+        <![CDATA[
+SELECT c.*,(SELECT COUNT(*) FROM zentide_hub_member hm WHERE hm.category_id=c.category_id AND hm.membership_status='ACTIVE') AS hub_count FROM zentide_hub_category c WHERE c.user_id=#{userId} ORDER BY c.sort_order,c.category_id
+        ]]>
+    </select>
+
+    <insert id="insertHubCategory" useGeneratedKeys="true" keyProperty="categoryId">
+        <![CDATA[
+INSERT INTO zentide_hub_category(user_id,name,sort_order) VALUES(#{userId},#{name},#{sortOrder})
+        ]]>
+    </insert>
+
+    <select id="findUserHubCategory" resultType="com.zentide.entity.po.ZentideHubCategory">
+        <![CDATA[
+SELECT * FROM zentide_hub_category WHERE category_id=#{categoryId} AND user_id=#{userId} LIMIT 1
+        ]]>
+    </select>
+
+    <delete id="deleteHubCategory">
+        <![CDATA[
+DELETE FROM zentide_hub_category WHERE category_id=#{categoryId} AND user_id=#{userId}
+        ]]>
+    </delete>
+
+    <update id="assignHubCategory">
+        <![CDATA[
+UPDATE zentide_hub_member SET category_id=#{categoryId},updated_at=CURRENT_TIMESTAMP(3) WHERE hub_id=#{hubId} AND user_id=#{userId} AND membership_status='ACTIVE'
+        ]]>
+    </update>
+
+    <select id="findEvent" resultType="java.lang.Long">
+        <![CDATA[
+SELECT event_id FROM zentide_interest_event WHERE event_id=#{eventId} AND status='UPCOMING' LIMIT 1
+        ]]>
+    </select>
+
+    <select id="findEventHub" resultType="java.lang.Long">
+        <![CDATA[
+SELECT hub_id FROM zentide_interest_event WHERE event_id=#{eventId} AND status='UPCOMING' LIMIT 1
+        ]]>
+    </select>
+
+</mapper>

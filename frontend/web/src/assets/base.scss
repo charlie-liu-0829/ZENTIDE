@@ -1,0 +1,314 @@
+/* ZENTIDE / 知潮 design system — knowledge in motion */
+:root {
+  --zt-bg: #f5f6fb;
+  --zt-surface: #ffffff;
+  --zt-surface-soft: #edf0f7;
+  --zt-surface-hover: #f8f9fc;
+  --zt-text: #20243a;
+  --zt-text-2: #515a73;
+  --zt-text-3: #858da2;
+  --zt-primary: #25264e;
+  --zt-primary-hover: #171832;
+  --zt-primary-soft: #e6e7f8;
+  --zt-tide: #6663df;
+  --zt-tide-soft: #eeedff;
+  --zt-accent: #ed806c;
+  --zt-accent-soft: #fff0eb;
+  --zt-border: #dfe3ee;
+  --zt-border-soft: #eceef4;
+  --zt-danger: #c85d5d;
+  --zt-radius-xs: 4px;
+  --zt-radius-sm: 7px;
+  --zt-radius-md: 10px;
+  --zt-radius-lg: 14px;
+  --zt-shadow-sm: 0 2px 6px rgba(35, 40, 76, 0.05);
+  --zt-shadow-md: 0 18px 52px rgba(35, 40, 76, 0.14);
+  --zt-page-width: 1280px;
+
+  --el-color-primary: var(--zt-primary) !important;
+  --el-color-primary-light-3: #7774e8 !important;
+  --el-color-primary-light-5: #9b99ef !important;
+  --el-color-primary-light-7: #c2c1f6 !important;
+  --el-color-primary-light-8: #dcdcfb !important;
+  --el-color-primary-light-9: #efefff !important;
+  --el-color-primary-dark-2: var(--zt-primary-hover) !important;
+  --el-color-success: #438f79 !important;
+  --el-color-warning: #c78345 !important;
+  --el-color-danger: var(--zt-danger) !important;
+  --el-color-error: var(--zt-danger) !important;
+  --el-color-info: #747b77 !important;
+  --el-border-color: var(--zt-border) !important;
+  --el-border-color-light: var(--zt-border-soft) !important;
+  --el-fill-color-blank: var(--zt-surface) !important;
+  --el-bg-color: var(--zt-surface) !important;
+  --el-text-color-primary: var(--zt-text) !important;
+  --el-text-color-regular: var(--zt-text-2) !important;
+  --el-border-radius-base: var(--zt-radius-sm) !important;
+
+  --text: var(--zt-text);
+  --text2: var(--zt-text-2);
+  --text3: var(--zt-text-3);
+  --pink: var(--zt-primary);
+  --red: var(--zt-accent);
+  --link: var(--zt-primary);
+  --link2: var(--zt-primary-hover);
+  --green: var(--zt-primary);
+}
+
+* {
+  box-sizing: border-box;
+}
+html {
+  color-scheme: light;
+  background: var(--zt-bg);
+}
+body {
+  min-width: 320px;
+  padding: 0;
+  margin: 0;
+  color: var(--zt-text);
+  background: var(--zt-bg);
+  font-family:
+    Inter,
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    'PingFang SC',
+    'Hiragino Sans GB',
+    'Microsoft YaHei',
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+h1,
+h2,
+h3,
+h4 {
+  text-wrap: balance;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+::selection {
+  color: #fff;
+  background: rgba(102, 99, 223, 0.86);
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--zt-surface-soft);
+}
+::-webkit-scrollbar-thumb {
+  border: 2px solid var(--zt-surface-soft);
+  border-radius: 999px;
+  background: #c2c6d5;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #969bb2;
+}
+.a-link {
+  color: var(--zt-primary);
+  cursor: pointer;
+  text-decoration: none;
+}
+.a-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.el-form-item {
+  align-items: center;
+}
+.el-form-item__label {
+  color: var(--zt-text-2) !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+}
+.el-input__wrapper,
+.el-select__wrapper,
+.el-textarea__inner {
+  border-radius: var(--zt-radius-sm) !important;
+  background: color-mix(in srgb, var(--zt-surface) 96%, var(--zt-tide-soft)) !important;
+  box-shadow: 0 0 0 1px var(--zt-border) inset !important;
+  transition:
+    box-shadow 0.15s ease,
+    background-color 0.15s ease !important;
+}
+.el-input__wrapper:hover,
+.el-select__wrapper:hover,
+.el-textarea__inner:hover {
+  box-shadow: 0 0 0 1px #b8b7af inset !important;
+}
+.el-input__wrapper.is-focus,
+.el-select__wrapper.is-focused,
+.el-textarea__inner:focus {
+  box-shadow:
+    0 0 0 1px var(--zt-primary) inset,
+    0 0 0 3px rgba(102, 99, 223, 0.12) !important;
+}
+.el-button {
+  border-radius: var(--zt-radius-sm) !important;
+  font-weight: 620;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease !important;
+}
+.el-button--primary {
+  border-color: var(--zt-primary) !important;
+  background: var(--zt-primary) !important;
+  font-weight: 680;
+}
+.el-button--primary:not(.is-disabled):hover {
+  border-color: var(--zt-primary-hover) !important;
+  background: var(--zt-primary-hover) !important;
+  box-shadow: none;
+}
+/* Element Plus combines `link` and `type` classes. Keep link actions text-only
+   so a global filled-button theme can never hide their labels. */
+.el-button.is-link {
+  border-color: transparent !important;
+  background: transparent !important;
+}
+.el-button.is-link.el-button--primary {
+  color: var(--zt-primary) !important;
+}
+.el-button.is-link.el-button--success {
+  color: var(--el-color-success) !important;
+}
+.el-button.is-link.el-button--warning {
+  color: var(--el-color-warning) !important;
+}
+.el-button.is-link.el-button--danger {
+  color: var(--zt-danger) !important;
+}
+.el-button.is-link:not(.is-disabled):hover {
+  background: var(--zt-primary-soft) !important;
+}
+.el-button.is-link.el-button--danger:not(.is-disabled):hover {
+  background: var(--zt-accent-soft) !important;
+}
+.el-button:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--zt-tide) 70%, white);
+  outline-offset: 2px;
+}
+.el-dialog {
+  overflow: hidden;
+  border: 1px solid var(--zt-border) !important;
+  border-radius: var(--zt-radius-lg) !important;
+  background: var(--zt-surface) !important;
+  box-shadow: var(--zt-shadow-md) !important;
+}
+.el-dialog__header {
+  padding: 20px 22px 15px !important;
+  border-bottom: 1px solid var(--zt-border-soft);
+}
+.el-dialog__title {
+  color: var(--zt-text) !important;
+  font-size: 16px !important;
+  font-weight: 750 !important;
+}
+.el-dialog__body {
+  color: var(--zt-text-2);
+}
+.el-dialog__footer {
+  padding: 14px 22px 18px !important;
+  border-top: 1px solid var(--zt-border-soft);
+}
+.el-overlay {
+  background: rgba(16, 29, 26, 0.46) !important;
+  backdrop-filter: blur(4px) saturate(0.85);
+}
+.el-dropdown__popper,
+.el-select__popper,
+.el-picker__popper {
+  overflow: hidden;
+  border: 1px solid var(--zt-border) !important;
+  border-radius: var(--zt-radius-md) !important;
+  box-shadow: var(--zt-shadow-md) !important;
+}
+.el-dropdown-menu {
+  padding: 5px !important;
+  background: var(--zt-surface);
+}
+.el-dropdown-menu__item {
+  border-radius: 6px;
+  color: var(--zt-text-2) !important;
+  font-size: 12px;
+}
+.el-dropdown-menu__item:not(.is-disabled):focus {
+  color: var(--zt-primary) !important;
+  background: var(--zt-primary-soft) !important;
+}
+.el-message {
+  border: 1px solid var(--zt-border) !important;
+  border-radius: var(--zt-radius-md) !important;
+  background: var(--zt-surface) !important;
+  box-shadow: var(--zt-shadow-md) !important;
+}
+.el-tabs__item {
+  color: var(--zt-text-2) !important;
+  font-weight: 620 !important;
+}
+.el-tabs__item.is-active,
+.el-tabs__item:hover {
+  color: var(--zt-primary) !important;
+}
+.el-tabs__active-bar {
+  height: 2px !important;
+  background: var(--zt-tide) !important;
+}
+.el-tag {
+  border-radius: var(--zt-radius-xs) !important;
+}
+.my-tab .el-tabs__nav-wrap::after {
+  background: none;
+}
+.my-tab .el-tabs__header {
+  margin: 0;
+}
+.el-popper {
+  outline: none;
+}
+.el-tooltip__trigger:focus-visible {
+  outline: unset;
+}
+.el-menu--horizontal .el-menu-item:not(.is-disabled):focus,
+.el-menu--horizontal .el-menu-item:not(.is-disabled):hover {
+  color: var(--zt-primary) !important;
+  background: var(--zt-surface) !important;
+  outline: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+@media (max-width: 680px) {
+  body {
+    padding-bottom: 59px;
+  }
+  .el-dialog {
+    width: calc(100vw - 20px) !important;
+    margin-top: 5vh !important;
+  }
+}

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zentide.mapper.ZentideChangeWatchMapper">
+
+    <select id="countPublishedChange" resultType="int">
+        <![CDATA[
+SELECT COUNT(*) FROM zentide_change WHERE change_id=#{changeId} AND status='PUBLISHED' AND verification_status='VERIFIED'
+        ]]>
+    </select>
+
+    <insert id="watch">
+        <![CDATA[
+INSERT INTO zentide_user_action(user_id,change_id,action_type,action_value,status) VALUES(#{userId},#{changeId},'WATCH',#{watchMode},'ACTIVE') ON DUPLICATE KEY UPDATE action_value=VALUES(action_value),status='ACTIVE',updated_at=CURRENT_TIMESTAMP(3)
+        ]]>
+    </insert>
+
+    <update id="stopWatching">
+        <![CDATA[
+UPDATE zentide_user_action SET status='STOPPED',updated_at=CURRENT_TIMESTAMP(3) WHERE change_id=#{changeId} AND user_id=#{userId} AND action_type='WATCH' AND status='ACTIVE'
+        ]]>
+    </update>
+
+    <select id="listActive" resultType="com.zentide.entity.po.ZentideChange">
+        <![CDATA[
+SELECT c.*,w.action_value AS watch_mode,w.updated_at AS watched_at FROM zentide_user_action w JOIN zentide_change c ON c.change_id=w.change_id WHERE w.user_id=#{userId} AND w.action_type='WATCH' AND w.status='ACTIVE' AND c.status='PUBLISHED' ORDER BY w.updated_at DESC LIMIT #{limit}
+        ]]>
+    </select>
+
+</mapper>

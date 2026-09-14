@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zentide.mapper.ZentideChangeCandidateMapper">
+
+    <insert id="insertSignal" useGeneratedKeys="true" keyProperty="signalId">
+        <![CDATA[
+INSERT INTO zentide_signal(source_id,document_version_id,signal_key,signal_type,title,summary,status,confidence_score,discovered_at) VALUES(#{sourceId},#{documentVersionId},#{signalKey},#{signalType},#{title},#{summary},'OBSERVING',#{confidenceScore},#{discoveredAt})
+        ]]>
+    </insert>
+
+    <insert id="attachSignalTopics">
+        <![CDATA[
+INSERT IGNORE INTO zentide_topic_link(signal_id,topic_id,link_role) SELECT #{signalId},topic_id,'SOURCE' FROM zentide_topic_link WHERE source_id=#{sourceId} AND status='ACTIVE'
+        ]]>
+    </insert>
+
+    <insert id="insertChange" useGeneratedKeys="true" keyProperty="changeId">
+        <![CDATA[
+INSERT INTO zentide_change(entity_type,entity_key,document_version_id,change_key,change_type,title,summary,what_happened,importance,status,verification_status,occurred_at,published_at) VALUES(#{entityType},#{entityKey},#{documentVersionId},#{changeKey},#{changeType},#{title},#{summary},#{whatHappened},'MEDIUM','CANDIDATE','UNVERIFIED',#{occurredAt},#{publishedAt})
+        ]]>
+    </insert>
+
+    <insert id="insertClaim" useGeneratedKeys="true" keyProperty="claimId">
+        <![CDATA[
+INSERT INTO zentide_claim(change_id,claim_type,claim_text,confidence,status) VALUES(#{changeId},#{claimType},#{claimText},#{confidence},'CANDIDATE')
+        ]]>
+    </insert>
+
+    <insert id="insertEvidence" useGeneratedKeys="true" keyProperty="evidenceId">
+        <![CDATA[
+INSERT INTO zentide_evidence(change_id,source_id,document_version_id,claim_id,source_name,source_url,locator,excerpt,trust_tier,excerpt_hash) VALUES(#{changeId},#{sourceId},#{documentVersionId},#{claimId},#{sourceName},#{sourceUrl},#{locator},#{excerpt},#{trustTier},#{excerptHash})
+        ]]>
+    </insert>
+
+    <update id="linkSignalToChange">
+        <![CDATA[
+UPDATE zentide_signal SET linked_change_id=#{changeId},status='ASSESSING' WHERE signal_id=#{signalId} AND status='OBSERVING'
+        ]]>
+    </update>
+
+    <insert id="insertActivity">
+        <![CDATA[
+INSERT INTO zentide_observation_activity(signal_id,change_id,source_id,stage,status,message) VALUES(#{signalId},#{changeId},#{sourceId},#{stage},#{status},#{message})
+        ]]>
+    </insert>
+
+</mapper>

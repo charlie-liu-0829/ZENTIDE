@@ -1,0 +1,78 @@
+server:
+  port: 6050
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: zentide-web
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 110MB
+  datasource:
+    url: ${ZENTIDE_DB_URL:jdbc:mysql://127.0.0.1:3306/zentide?allowMultiQueries=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=GMT%2B8&characterEncoding=UTF-8}
+    username: ${ZENTIDE_DB_USERNAME:root}
+    password: ${ZENTIDE_DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-init-sql: "SET time_zone = '+08:00'"
+  flyway:
+    # zentide.sql is the canonical bootstrap for a fresh database. Enable only
+    # when intentionally upgrading a legacy installation with Flyway history.
+    enabled: ${ZENTIDE_FLYWAY_ENABLED:false}
+    baseline-on-migrate: true
+    baseline-version: ${ZENTIDE_FLYWAY_BASELINE_VERSION:35}
+  task:
+    scheduling:
+      pool:
+        size: 5
+  data:
+    redis:
+      host: ${ZENTIDE_REDIS_HOST:127.0.0.1}
+      port: ${ZENTIDE_REDIS_PORT:6379}
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+project:
+  folder: ./data
+
+zentide:
+  agent:
+    # Python Agent API 仅监听本机，由 Web 服务完成登录和现场权限校验后转发。
+    base-url: ${ZENTIDE_AGENT_URL:http://127.0.0.1:8090}
+    internal-token: ${ZENTIDE_AGENT_INTERNAL_TOKEN:}
+  post-review:
+    # SmartPosting 发布前质量检查服务，仅由已认证的 Web 服务调用。
+    base-url: ${ZENTIDE_POST_REVIEW_URL:http://127.0.0.1:8091}
+  recommend:
+    # 个性化兴趣情报服务。浏览器只访问 Web API，不直接连接 Python。
+    base-url: ${ZENTIDE_RECOMMEND_URL:http://127.0.0.1:8092}
+  governance:
+    # 社区治理 Agent 只给出建议，最终动作由管理员确认。
+    base-url: ${ZENTIDE_GOVERNANCE_URL:http://127.0.0.1:8093}
+  fetch:
+    scheduler-enabled: false
+    interval-ms: 1800000
+    batch-size: 50
+  search:
+    elasticsearch:
+      # 留空时自动使用 MySQL 兜底，配置后优先走 Elasticsearch REST API。
+      url: ${ZENTIDE_ELASTICSEARCH_URL:}
+      posts-index: ${ZENTIDE_ELASTICSEARCH_POSTS_INDEX:zentide_posts}
+      hubs-index: ${ZENTIDE_ELASTICSEARCH_HUBS_INDEX:zentide_hubs}
+  knowledge:
+    snapshot-dir: ${ZENTIDE_KNOWLEDGE_SNAPSHOT_DIR:./data/knowledge-snapshots}
+    rebuild-interval-ms: ${ZENTIDE_KNOWLEDGE_REBUILD_INTERVAL_MS:600000}
+
+log:
+  root:
+    level: info

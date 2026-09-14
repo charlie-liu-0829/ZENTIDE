@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zentide.mapper.ZentideRadarMapper">
+
+    <select id="listByOwner" resultType="com.zentide.entity.po.ZentideRadar">
+        <![CDATA[
+SELECT r.*,
+  (SELECT COUNT(DISTINCT ts.source_id)
+     FROM zentide_topic_link rt
+     JOIN zentide_topic_link ts ON ts.topic_id=rt.topic_id AND ts.source_id IS NOT NULL AND ts.status='ACTIVE'
+    WHERE rt.radar_id=r.radar_id) AS source_count,
+  (SELECT COUNT(DISTINCT tc.change_id)
+     FROM zentide_topic_link rt
+     JOIN zentide_topic_link tc ON tc.topic_id=rt.topic_id AND tc.change_id IS NOT NULL
+     JOIN zentide_change c ON c.change_id=tc.change_id
+    WHERE rt.radar_id=r.radar_id
+      AND c.status='PUBLISHED' AND c.verification_status='VERIFIED') AS change_count
+FROM zentide_radar r
+WHERE r.owner_id=#{ownerId} AND r.status!='ARCHIVED'
+ORDER BY r.updated_at DESC
+        ]]>
+    </select>
+
+    <select id="findOwned" resultType="com.zentide.entity.po.ZentideRadar">
+        <![CDATA[
+SELECT * FROM zentide_radar WHERE radar_id=#{radarId} AND owner_id=#{ownerId} LIMIT 1
+        ]]>
+    </select>
+
+    <select id="findActiveTopic" resultType="com.zentide.entity.po.ZentideTopic">
+        <![CDATA[
+SELECT * FROM zentide_topic WHERE topic_id=#{topicId} AND status='ACTIVE' LIMIT 1
+        ]]>
+    </select>
+
+    <insert id="insertRadar" useGeneratedKeys="true" keyProperty="radarId">
+        <![CDATA[
+INSERT INTO zentide_radar(
+  owner_id,name,attention_level,notification_strategy,change_types_json,
+  source_preferences_json,ignore_rules_json,user_context,visibility,status,version
+) VALUES(
+  #{ownerId},#{name},#{attentionLevel},#{notificationStrategy},#{changeTypesJson},
+  #{sourcePreferencesJson},#{ignoreRulesJson},#{userContext},'PRIVATE','ACTIVE',1
+)
+        ]]>
+    </insert>
+
+    <update id="updateRadar">
+        <![CDATA[
+UPDATE zentide_radar
+SET name=#{name},attention_level=#{attentionLevel},notification_strategy=#{notificationStrategy},
+    change_types_json=#{changeTypesJson},source_preferences_json=#{sourcePreferencesJson},
+    ignore_rules_json=#{ignoreRulesJson},user_context=#{userContext},version=version+1,
+    updated_at=CURRENT_TIMESTAMP(3)
+WHERE radar_id=#{radarId} AND owner_id=#{ownerId} AND status!='ARCHIVED'
+        ]]>
+    </update>
+
+    <delete id="deleteTopics">
+        <![CDATA[
+DELETE FROM zentide_topic_link WHERE radar_id=#{radarId}
+        ]]>
+    </delete>
+
+    <update id="touchRadar">
+        <![CDATA[
+UPDATE zentide_radar SET version=version+1,updated_at=CURRENT_TIMESTAMP(3) WHERE radar_id=#{radarId} AND owner_id=#{ownerId} AND status='ACTIVE'
+        ]]>
+    </update>
+
+    <insert id="insertTopic" useGeneratedKeys="true" keyProperty="topicId">
+        <![CDATA[
+INSERT INTO zentide_topic(canonical_name,topic_type,status) VALUES(#{canonicalName},#{topicType},'ACTIVE') ON DUPLICATE KEY UPDATE topic_id=LAST_INSERT_ID(topic_id)
+        ]]>
+    </insert>
+
+    <insert id="attachTopic">
+        <![CDATA[
+INSERT INTO zentide_topic_link(radar_id,topic_id,weight,include_descendants,note) VALUES(#{radarId},#{topicId},1.00,1,#{note}) ON DUPLICATE KEY UPDATE note=VALUES(note)
+        ]]>
+    </insert>
+
+    <insert id="ensureTopicFollow">
+        <![CDATA[
+INSERT INTO zentide_user_action(user_id,topic_id,action_type,action_value,status) VALUES(#{userId},#{topicId},'FOLLOW','DAILY','ACTIVE') ON DUPLICATE KEY UPDATE status='ACTIVE',updated_at=CURRENT_TIMESTAMP(3)
+        ]]>
+    </insert>
+
+    <select id="listTopics" resultType="com.zentide.entity.po.ZentideRadarTopic">
+        <![CDATA[
+SELECT rt.topic_link_id AS radar_topic_id,rt.radar_id,rt.topic_id,rt.weight,rt.include_descendants,rt.note,t.canonical_name,t.topic_type FROM zentide_topic_link rt JOIN zentide_topic t ON t.topic_id=rt.topic_id WHERE rt.radar_id=#{radarId} ORDER BY t.canonical_name
+        ]]>
+    </select>
+
+</mapper>

@@ -1,0 +1,81 @@
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  /**/
+}
+
+::-webkit-scrollbar-track {
+  background: rgb(239, 239, 239);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #bfbfbf;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
+}
+
+::-webkit-scrollbar-corner {
+  background: #bfbfbf;
+}
+
+:root {
+  --text: #1f1f1f;
+  --text2: #61666d;
+  --text3: #a7a8aa;
+  --pink: #ff6b6b;
+  --red: #ff5000;
+  --link: #007fff;
+  --link2: #409eff;
+  --green: #14b8a6;
+}
+
+body {
+  padding: 0px;
+  margin: 0px;
+  font-size: 14px;
+}
+
+* {
+  box-sizing: border-box;
+  font-family:
+    PingFang SC,
+    HarmonyOS_Regular,
+    Helvetica Neue,
+    Microsoft YaHei,
+    sans-serif;
+}
+
+.a-link {
+  text-decoration: none;
+  color: var(--red);
+  cursor: pointer;
+}
+
+.el-card__header {
+  padding: 10px !important;
+  border-bottom: none !important;
+}
+
+.el-card__body {
+  padding: 10px !important;
+}
+
+.search-panel {
+  .el-form-item {
+    margin-bottom: 0px;
+  }
+
+  margin-bottom: 10px;
+}
+
+.table-panel {
+  .list-op-panel {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+  }
+}
