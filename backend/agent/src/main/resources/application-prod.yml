@@ -1,6 +1,0 @@
-spring:
-  flyway:
-    enabled: true
-logging:
-  level:
-    root: INFO

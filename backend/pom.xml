@@ -23,7 +23,6 @@
         <module>zentide-common</module>
         <module>zentide-admin</module>
         <module>zentide-web</module>
-        <module>agent</module>
     </modules>
 
     <properties>
