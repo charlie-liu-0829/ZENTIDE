@@ -5,6 +5,14 @@ script_dir="$(cd "$(dirname "$0")" && pwd)"
 project_dir="$(cd "$script_dir/.." && pwd)"
 agent_root="$project_dir/backend/agent/src/main/python"
 
+# All Agents must read the same Java-exported snapshots. Normalize a relative
+# .env value before each child changes its working directory.
+snapshot_dir="${ZENTIDE_KNOWLEDGE_SNAPSHOT_DIR:-$project_dir/data/knowledge-snapshots}"
+if [[ "$snapshot_dir" != /* ]]; then
+  snapshot_dir="$project_dir/${snapshot_dir#./}"
+fi
+export ZENTIDE_KNOWLEDGE_SNAPSHOT_DIR="$snapshot_dir"
+
 # Prefer the preconfigured Conda environment named "agent".  The explicit
 # ZENTIDE_AGENT_PYTHON override is useful for CI or a project virtualenv.
 if [[ -n "${ZENTIDE_AGENT_PYTHON:-}" ]]; then
