@@ -35,6 +35,8 @@ cp .env.example .env
 
 至少配置 MySQL 密码、管理员密码、`DASHSCOPE_API_KEY`，并为 `ZENTIDE_AGENT_INTERNAL_TOKEN` 设置随机长字符串。`.env` 不会提交到 GitHub。
 
+Chat Agent 的知识快照路径已固定写在 `backend/agent/src/main/python/chat/config/agent.yml`，不需要配置 `ZENTIDE_KNOWLEDGE_SNAPSHOT_DIR`。如果把项目移动到其他目录，请修改该文件中的两个绝对路径，使其指向项目的 `data/knowledge-snapshots` 和 `data/.snapshot-md5.json`。
+
 ### 启动基础服务
 
 ```bash

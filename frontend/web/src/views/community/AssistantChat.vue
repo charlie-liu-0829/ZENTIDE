@@ -32,28 +32,9 @@
           <div><strong>社区小助手</strong><small>基于现场内容回答</small></div>
         </div>
         <div class="chat-actions">
-          <button type="button" @click="historyVisible = !historyVisible">历史会话</button>
           <button type="button" @click="newConversation">新对话</button>
         </div>
       </header>
-
-      <aside v-if="historyVisible" class="history-panel">
-        <header>
-          <strong>历史会话</strong><button type="button" @click="historyVisible = false">×</button>
-        </header>
-        <button
-          v-for="item in historyItems"
-          :key="item.id"
-          type="button"
-          class="history-item"
-          @click="restoreHistory(item)"
-        >
-          <strong>{{ item.title }}</strong
-          ><small>{{ formatHistoryTime(item.updatedAt) }}</small>
-          <i @click.stop="removeHistory(item.id)">删除</i>
-        </button>
-        <p v-if="!historyItems.length" class="history-empty">还没有历史会话</p>
-      </aside>
 
       <div ref="messageList" class="message-list">
         <div v-if="contextError" class="context-error">
@@ -199,8 +180,6 @@ const contextError = ref('')
 const messageList = ref(null)
 const conversationId = ref('')
 const messages = ref([])
-const historyVisible = ref(false)
-const historyItems = ref([])
 const mentionVisible = ref(false)
 const mentionPosts = ref([])
 const suggestions = computed(() =>
@@ -216,7 +195,6 @@ const createConversationId = () =>
 // v3 intentionally drops conversations created with the old prompt, which
 // could contain internal route identifiers in assistant text.
 const storageKey = computed(() => `zentide-agent:v3:${hubId.value}:${postId.value || 'scene'}`)
-const historyKey = computed(() => `zentide-agent-history:v2:${hubId.value}`)
 const greeting = () => ({
   id: `greeting-${Date.now()}`,
   role: 'assistant',
@@ -230,48 +208,20 @@ const persist = () => {
     JSON.stringify({ conversationId: conversationId.value, messages: messages.value.slice(-30) }),
   )
   const firstQuestion = messages.value.find((message) => message.role === 'user')?.content
-  const existing = historyItems.value.find((item) => item.id === conversationId.value)
   const item = {
     id: conversationId.value,
-    title: existing?.title || firstQuestion?.slice(0, 28) || '新对话',
+    title: firstQuestion?.slice(0, 28) || '新对话',
     updatedAt: Date.now(),
     mode: mode.value,
+    scopeLabel: isPostMode.value
+      ? '当前帖子'
+      : selectedPosts.value.length
+        ? `现场：${hub.value?.name || '当前现场'} · ${selectedPosts.value.length} 篇关联帖子`
+        : `现场：${hub.value?.name || '当前现场'}`,
     postId: activePostId.value,
     posts: selectedPosts.value,
     messages: messages.value.slice(-30),
   }
-  historyItems.value = [item, ...historyItems.value.filter((entry) => entry.id !== item.id)].slice(0, 30)
-  localStorage.setItem(historyKey.value, JSON.stringify(historyItems.value))
-}
-const loadHistory = () => {
-  try {
-    const saved = JSON.parse(localStorage.getItem(historyKey.value) || '[]')
-    historyItems.value = Array.isArray(saved) ? saved : []
-  } catch {
-    historyItems.value = []
-  }
-}
-const formatHistoryTime = (value) =>
-  value
-    ? new Date(value).toLocaleString('zh-CN', {
-        month: 'numeric',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : ''
-const restoreHistory = (item) => {
-  conversationId.value = item.id
-  if (!isPostMode.value)
-    selectedPosts.value = Array.isArray(item.posts) ? item.posts : item.post ? [item.post] : []
-  messages.value = Array.isArray(item.messages) ? item.messages : [greeting()]
-  historyVisible.value = false
-  persist()
-  scrollToBottom()
-}
-const removeHistory = (id) => {
-  historyItems.value = historyItems.value.filter((item) => item.id !== id)
-  localStorage.setItem(historyKey.value, JSON.stringify(historyItems.value))
 }
 const restore = () => {
   try {
@@ -360,7 +310,6 @@ const loadContext = async () => {
     contextError.value = '请先加入这个兴趣现场，再使用社区小助手。'
     return
   }
-  loadHistory()
   restore()
 }
 const send = async (suggestion) => {
@@ -372,7 +321,6 @@ const send = async (suggestion) => {
   slowResponse.value = false
   requestController.value = new AbortController()
   slowResponseTimer = window.setTimeout(() => (slowResponse.value = true), 8000)
-  persist()
   await scrollToBottom()
   let streamAssistant = null
   try {

@@ -4,7 +4,23 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 project_dir="$(cd "$script_dir/.." && pwd)"
 agent_root="$project_dir/backend/agent/src/main/python"
-default_python="${ZENTIDE_AGENT_PYTHON:-python3}"
+
+# Prefer the preconfigured Conda environment named "agent".  The explicit
+# ZENTIDE_AGENT_PYTHON override is useful for CI or a project virtualenv.
+if [[ -n "${ZENTIDE_AGENT_PYTHON:-}" ]]; then
+  default_python="$ZENTIDE_AGENT_PYTHON"
+elif command -v conda >/dev/null 2>&1; then
+  conda_base="$(conda info --base 2>/dev/null || true)"
+  if [[ -x "$conda_base/envs/agent/bin/python" ]]; then
+    default_python="$conda_base/envs/agent/bin/python"
+  else
+    default_python="python3"
+  fi
+else
+  default_python="python3"
+fi
+
+echo "Using Agent Python: $default_python"
 
 declare -a child_pids=()
 

@@ -1,3 +1,5 @@
 external_data_path: data/external/records.csv
-file_path: data/knowledge-snapshots
-snapshot_manifest_path: data/.snapshot-md5.json
+# Absolute paths keep the Agent independent from its working directory.
+# Change the project root here if ZENTIDE is moved to another location.
+file_path: /Users/charlieliu/Desktop/java/ZENTIDE/data/knowledge-snapshots
+snapshot_manifest_path: /Users/charlieliu/Desktop/java/ZENTIDE/data/.snapshot-md5.json

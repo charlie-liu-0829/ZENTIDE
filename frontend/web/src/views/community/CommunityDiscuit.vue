@@ -395,8 +395,11 @@
           <div v-if="reviewResult" class="review-result" :class="{ stale: !reviewIsCurrent }">
             <p v-if="!reviewIsCurrent" class="review-stale review-status">内容已变化，请重新检查</p>
             <p v-else-if="reviewResult.publish_blocked" class="review-danger review-status">
-              ! 检测到敏感信息，禁止发布
+              ! 禁止发布：检测到以下违规风险
             </p>
+            <ul v-if="reviewIsCurrent && reviewResult.publish_blocked && reviewResult.blocking_reasons?.length" class="review-blocking-reasons">
+              <li v-for="reason in reviewResult.blocking_reasons" :key="reason">{{ reason }}</li>
+            </ul>
             <p v-else-if="reviewResult.analysis_mode === 'rules'" class="review-warn review-status">
               模型暂不可用，当前为基础规则检查
             </p>
@@ -1673,13 +1676,15 @@ const publishPost = async () => {
     const reviewed = await runSmartReview()
     if (!reviewed) return
     if (reviewed.publish_blocked) {
-      return proxy.Message.error('检测到敏感信息，禁止发布；请移除或脱敏后重新检查')
+      const reasons = Array.isArray(reviewed.blocking_reasons) ? reviewed.blocking_reasons.filter(Boolean) : []
+      return proxy.Message.error(`禁止发布：${reasons.join('；') || '检测到不符合社区规则的内容'}。请修改后重新检查`)
     }
     if (optimizedContentOfferVisible.value) return
     if (reviewed.advice !== 'ready') return
   }
   if (!isEditing.value && reviewResult.value?.publish_blocked) {
-    return proxy.Message.error('检测到敏感信息，禁止发布；请移除或脱敏后重新检查')
+    const reasons = Array.isArray(reviewResult.value.blocking_reasons) ? reviewResult.value.blocking_reasons.filter(Boolean) : []
+    return proxy.Message.error(`禁止发布：${reasons.join('；') || '检测到不符合社区规则的内容'}。请修改后重新检查`)
   }
   publishing.value = true
   const editing = isEditing.value

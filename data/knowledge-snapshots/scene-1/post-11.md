@@ -8,7 +8,7 @@ author_id: 7660576421
 author_name: liu
 post_type: 讨论
 created_at: 2026-09-11T20:10:45.026
-updated_at: 2026-09-12T11:36:20.928
+updated_at: 2026-09-14T15:08:13.569
 ---
 
 # 我不是傻子
@@ -21,4 +21,12 @@ updated_at: 2026-09-12T11:36:20.928
 
 ## 评论区
 
-暂无已发布评论。
+### 评论 1
+
+comment_id: 1
+author_id: 7660576421
+author_name: liu
+created_at: 2026-09-14T15:07:51.903
+
+不要骂人
+
