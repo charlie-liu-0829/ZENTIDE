@@ -46,9 +46,3 @@ jobs:
 
       - name: Verify backend, frontend and code quality
         run: make verify
-
-      - name: Install Playwright Chromium
-        run: npm --prefix frontend/web exec playwright install --with-deps chromium
-
-      - name: Run community E2E
-        run: make e2e

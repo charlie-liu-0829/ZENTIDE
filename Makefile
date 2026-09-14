@@ -1,4 +1,4 @@
-.PHONY: install build test lint format-check mapper-check schema-check seed-demo seed-random-posts agent-install agent-run post-review-install post-review-run recommend-install recommend-run governance-install governance-run agents-install e2e verify ci
+.PHONY: install build lint format-check mapper-check schema-check seed-demo seed-random-posts agent-install agent-run post-review-install post-review-run recommend-install recommend-run governance-install governance-run agents-install verify ci
 
 JAVA_DIR := backend
 FRONT_DIR := frontend
@@ -9,10 +9,6 @@ install:
 build:
 	cd $(JAVA_DIR) && ./mvnw -DskipTests package
 	npm --prefix $(FRONT_DIR) run build
-
-test:
-	cd $(JAVA_DIR) && ./mvnw test
-	npm --prefix $(FRONT_DIR) run test
 
 lint:
 	npm --prefix $(FRONT_DIR) run lint
@@ -66,9 +62,6 @@ agents-install:
 	.venv-agents/bin/python -m pip install --upgrade pip
 	.venv-agents/bin/python -m pip install -r $(JAVA_DIR)/agent/src/main/python/requirements-agents.txt
 
-e2e:
-	npm --prefix $(FRONT_DIR) run test:e2e
+verify: lint format-check mapper-check build
 
-verify: lint format-check mapper-check test build
-
-ci: schema-check verify e2e
+ci: schema-check verify

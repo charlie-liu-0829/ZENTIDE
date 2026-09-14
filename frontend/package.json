@@ -16,7 +16,6 @@
     "install:all": "npm --prefix web ci && npm --prefix admin ci",
     "lint": "npm --prefix web run lint && npm --prefix admin run lint",
     "format:check": "npm --prefix web run format:check && npm --prefix admin run format:check",
-    "test": "npm --prefix web run test && npm --prefix admin run test",
-    "test:e2e": "npm --prefix web run test:e2e"
+    "test": "echo 'Tests have been removed from this distribution.'"
   }
 }

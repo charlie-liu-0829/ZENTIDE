@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+from pathlib import Path
 from typing import Any
 
 
@@ -49,7 +50,8 @@ class QwenEvidenceSummarizer:
     def __call__(self, candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not candidates or not self._load():
             return []
-        prompt = f"""你是知潮社区的个性化兴趣情报 Agent。请只根据候选证据生成简洁情报，不添加候选中不存在的事实。
+        template = (Path(__file__).resolve().parent.parent / "prompts" / "recommend_prompt.txt").read_text(encoding="utf-8")
+        prompt = f"""{template}
 
 候选证据：{json.dumps(candidates, ensure_ascii=False)}
 
