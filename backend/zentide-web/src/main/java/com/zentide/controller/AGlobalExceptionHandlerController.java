@@ -26,7 +26,8 @@ public class AGlobalExceptionHandlerController extends ABaseController {
         return error(exception.getCode() == null ? ResponseCodeEnum.CODE_600.getCode() : exception.getCode(), exception.getMessage());
     }
 
-    @ExceptionHandler({MethodArgumentNotValidException.class, BindException.class,
+    @ExceptionHandler(
+            {MethodArgumentNotValidException.class, BindException.class,
             MethodArgumentTypeMismatchException.class, ConstraintViolationException.class,
             MissingServletRequestParameterException.class})
     ResponseVO<Void> handleValidationException(Exception exception) {
