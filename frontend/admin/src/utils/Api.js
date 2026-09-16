@@ -12,7 +12,6 @@ const Api = {
   zentideAdminCommunityOverview: '/zentide/v1/admin/community/overview',
   zentideAdminCommunityTopics: '/zentide/v1/admin/community/topics',
   zentideAdminCommunityDirections: '/zentide/v1/admin/community/directions',
-  zentideAdminGovernanceReview: '/zentide/v1/admin/governance/review',
   zentideAdminGovernanceScan: '/zentide/v1/admin/governance/scan',
   zentideAdminGovernanceRules: '/zentide/v1/admin/governance/rules',
   zentideAdminGovernanceRuleList: '/zentide/v1/admin/governance/rules/all',

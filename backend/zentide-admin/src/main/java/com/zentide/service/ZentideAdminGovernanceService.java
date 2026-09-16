@@ -29,7 +29,6 @@ public class ZentideAdminGovernanceService {
                                          @Value("${zentide.governance.internal-token:}") String token) {
         this.endpoint = endpoint.trim().replaceAll("/+$", ""); this.token = token == null ? "" : token.trim();
     }
-    public Map<String,Object> review(Map<String,Object> payload) { return call("/v1/governance/review", payload); }
     public Map<String,Object> feedback(Map<String,Object> payload) { return call("/v1/governance/feedback", payload); }
     public Map<String,Object> scan(Map<String,Object> payload) { return call("/v1/governance/scan", payload); }
     public Map<String,Object> rules(Map<String,Object> payload) { return call("/v1/governance/rules", payload); }

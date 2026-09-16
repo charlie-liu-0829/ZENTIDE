@@ -130,13 +130,6 @@ public class ZentideCommunityController extends ABaseController {
     @PostMapping("/entities")
     public ResponseVO<?> entities(@RequestParam(required = false) Long hubId, @RequestParam(required = false) @Min(1) @Max(50) Integer limit) { return getSuccessResponseVO(service.entities(hubId, currentUserId(), limit)); }
 
-    /** Reserved contract for the future Agent-generated "everyone is watching" summary. */
-    @PostMapping("/hubs/{hubId}/attention-summary")
-    public ResponseVO<?> attentionSummary(@PathVariable @Positive Long hubId) {
-        service.events(hubId, currentUserId(), 1); // validates that the target hub is still active
-        return getSuccessResponseVO(java.util.Map.of("status", "PLANNED", "items", java.util.List.of()));
-    }
-
     @PostMapping("/topics")
     public ResponseVO<?> topics(@RequestParam Long hubId, @RequestParam(required = false) @Min(1) @Max(50) Integer limit) { return getSuccessResponseVO(service.topics(hubId, limit)); }
 

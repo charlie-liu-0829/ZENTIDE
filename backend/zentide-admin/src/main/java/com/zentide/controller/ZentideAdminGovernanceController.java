@@ -24,8 +24,6 @@ public class ZentideAdminGovernanceController extends ABaseController {
     private final ZentideInterestMapper interestMapper;
     public ZentideAdminGovernanceController(ZentideAdminGovernanceService service, ZentideGovernanceControlPlaneService controlPlane, ZentideAdminCommunityService communityService, ZentideDirectMessageService directMessages, ZentideInterestMapper interestMapper) { this.service = service; this.controlPlane=controlPlane; this.communityService=communityService; this.directMessages=directMessages; this.interestMapper=interestMapper; }
 
-    @PostMapping("/review")
-    public ResponseVO<?> review(@RequestBody Map<String,Object> payload) { getAdminAccount(); return getSuccessResponseVO(service.review(payload)); }
     @PostMapping("/feedback")
     public ResponseVO<?> feedback(@RequestBody Map<String,Object> payload) {
         String reviewer = getAdminAccount();

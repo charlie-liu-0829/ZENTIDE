@@ -26,7 +26,7 @@ public class ZentideDiscussionController extends ABaseController {
     public ZentideDiscussionController(ZentideDiscussionService service) {
         this.service = service;
     }
-
+    //查找全部评论
     @PostMapping("/list")
     public ResponseVO<?> list(@PathVariable @Positive Long changeId, @RequestParam(required = false) @Min(1) @Max(200) Integer limit) {
         return getSuccessResponseVO(service.list(changeId, limit));

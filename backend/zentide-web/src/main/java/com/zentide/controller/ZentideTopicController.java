@@ -2,8 +2,6 @@ package com.zentide.controller;
 
 import com.zentide.annotation.GlobalInterceptor;
 import com.zentide.controller.ABaseController;
-import com.zentide.entity.dto.ZentideTopicCreateRequest;
-import com.zentide.entity.dto.ZentideTopicFollowRequest;
 import com.zentide.entity.dto.ZentideSourceApplicationRequest;
 import com.zentide.entity.vo.ResponseVO;
 import com.zentide.service.ZentideTopicService;
@@ -35,32 +33,6 @@ public class ZentideTopicController extends ABaseController {
     @PostMapping("/discover")
     public ResponseVO discover(@RequestParam(required = false) String query, @RequestParam(required = false) Integer limit) {
         return getSuccessResponseVO(service.discover(query, limit));
-    }
-
-    @PostMapping("/following")
-    @GlobalInterceptor(checkLogin = true)
-    public ResponseVO following() {
-        return getSuccessResponseVO(service.following(userId()));
-    }
-
-    @PostMapping
-    @GlobalInterceptor(checkLogin = true)
-    public ResponseVO<?> create(@Valid @ModelAttribute ZentideTopicCreateRequest request) {
-        return getSuccessResponseVO(service.createAndFollow(userId(), request.name(), request.topicType()));
-    }
-
-    @PostMapping("/{topicId}/follow")
-    @GlobalInterceptor(checkLogin = true)
-    public ResponseVO<?> follow(@PathVariable Long topicId, @Valid @ModelAttribute ZentideTopicFollowRequest request) {
-        service.follow(userId(), topicId, request.notificationMode());
-        return getSuccessResponseVO(null);
-    }
-
-    @PostMapping("/{topicId}/unfollow")
-    @GlobalInterceptor(checkLogin = true)
-    public ResponseVO unfollow(@PathVariable Long topicId) {
-        service.unfollow(userId(), topicId);
-        return getSuccessResponseVO(null);
     }
 
     @PostMapping("/{topicId}/sources/list")

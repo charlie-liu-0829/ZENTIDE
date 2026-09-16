@@ -4,13 +4,10 @@ import com.zentide.annotation.GlobalInterceptor;
 import com.zentide.component.RedisComponent;
 import com.zentide.constants.Constants;
 import com.zentide.entity.dto.TokenUserInfoDTO;
-import com.zentide.entity.po.UserInfo;
 import com.zentide.entity.vo.CheckCodeVO;
 import com.zentide.entity.vo.ResponseVO;
-import com.zentide.entity.vo.UserInfoVO;
 import com.zentide.exception.BusinessException;
 import com.zentide.service.account.UserAccountService;
-import com.zentide.utils.CopyTools;
 import com.wf.captcha.SpecCaptcha;
 import com.wf.captcha.base.Captcha;
 import jakarta.annotation.Resource;
@@ -23,7 +20,6 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -137,27 +133,4 @@ public class AccountController extends ABaseController {
         return getSuccessResponseVO(null);
     }
 
-    @PostMapping("/getUserInfo")
-    @GlobalInterceptor(checkLogin = true)
-    public ResponseVO getUserInfo() {
-        TokenUserInfoDTO tokenUserInfoDto = getTokenUserInfo();
-        UserInfo userInfo = accountService.findById(tokenUserInfoDto.getUserId());
-        return getSuccessResponseVO(CopyTools.copy(userInfo, UserInfoVO.class));
-    }
-
-    @PostMapping("/updateUserInfo")
-    @GlobalInterceptor(checkLogin = true)
-    public ResponseVO updateUserInfo(@NotEmpty String avatar, @NotEmpty @Size(max = 20) String nickName, @NotNull Integer sex) {
-        TokenUserInfoDTO tokenUserInfoDto = getTokenUserInfo();
-        UserInfo updateInfo = new UserInfo();
-        updateInfo.setAvatar(avatar);
-        updateInfo.setNickName(nickName);
-        updateInfo.setSex(sex);
-        accountService.updateUser(tokenUserInfoDto.getUserId(), updateInfo);
-
-        tokenUserInfoDto.setNickName(nickName);
-        tokenUserInfoDto.setAvatar(avatar);
-        redisComponent.updateTokenInfo(tokenUserInfoDto);
-        return getSuccessResponseVO(tokenUserInfoDto);
-    }
 }

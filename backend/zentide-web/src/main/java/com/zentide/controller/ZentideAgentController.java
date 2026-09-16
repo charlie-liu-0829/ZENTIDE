@@ -3,7 +3,6 @@ package com.zentide.controller;
 import com.zentide.annotation.GlobalInterceptor;
 import com.zentide.controller.ABaseController;
 import com.zentide.entity.dto.TokenUserInfoDTO;
-import com.zentide.entity.vo.ResponseVO;
 import com.zentide.exception.BusinessException;
 import com.zentide.service.ZentideAgentGatewayService;
 import com.zentide.service.ZentideInterestCommunityService;
@@ -22,7 +21,6 @@ import okhttp3.Call;
 
 import java.util.Locale;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -37,22 +35,6 @@ public class ZentideAgentController extends ABaseController {
                                   ZentideInterestCommunityService communityService) {
         this.agentGateway = agentGateway;
         this.communityService = communityService;
-    }
-
-    @PostMapping("/chat")
-    @GlobalInterceptor(checkLogin = true)
-    public ResponseVO<Map<String, Object>> chat(@Valid @RequestBody AgentChatRequest request) {
-        TokenUserInfoDTO user = getTokenUserInfo();
-        String mode = request.mode().toLowerCase(Locale.ROOT);
-        Long currentPostId = "post".equals(mode) ? request.currentPostId() : null;
-        if ("post".equals(mode) && currentPostId == null) {
-            throw new BusinessException("帖子模式必须指定帖子");
-        }
-        Set<String> visibilities = communityService.agentVisibilities(
-                user.getUserId(), request.sceneId(), currentPostId);
-        return getSuccessResponseVO(agentGateway.chat(
-                user.getUserId(), request.sceneId(), currentPostId, request.currentPostIds(), mode,
-                request.question(), request.conversationId(), visibilities));
     }
 
     @PostMapping(value = "/chat/stream", produces = "text/event-stream")
